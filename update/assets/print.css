@@ -1,0 +1,32 @@
+/* update/assets/print.css
+ * CSS de impressão simples e compatível.  Este arquivo define
+ * classes para diferentes larguras de papel e estilos básicos
+ * utilizados pelo motor de impressão.  Ele é equivalente ao
+ * print.css original fornecido pelo módulo fiscal/impressão e
+ * pode ser carregado manualmente se necessário.
+ */
+
+@media print {
+  body { margin: 0; }
+  .no-print { display: none !important; }
+}
+
+:root {
+  --font: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+body { font-family: var(--font); color: #000; background: #fff; }
+
+.paper { padding: 8px; }
+.paper-58 { width: 58mm; }
+.paper-80 { width: 80mm; }
+.paper-a4 { width: 210mm; }
+
+.h1 { font-size: 14px; font-weight: 700; text-align: center; }
+.small { font-size: 11px; }
+.row { display: flex; justify-content: space-between; gap: 8px; }
+.hr { border-top: 1px dashed #000; margin: 6px 0; }
+.items { margin-top: 6px; }
+.item { display: flex; justify-content: space-between; font-size: 11px; }
+.item .name { max-width: 70%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.total { font-size: 13px; font-weight: 700; }

@@ -1,0 +1,29 @@
+name = "erp-cloudflare"
+compatibility_date = "2024-11-01"
+
+[[kv_namespaces]]
+binding = "ERP_SYNC"
+# Preencha os IDs abaixo com os IDs de namespace do KV criados no painel do Cloudflare.
+id = "REPLACE_WITH_PRODUCTION_NAMESPACE_ID"
+preview_id = "REPLACE_WITH_PREVIEW_NAMESPACE_ID"
+
+[vars]
+# Token administrador usado para operações de backup completo. Defina no painel de ambiente.
+# Nunca commit tokens reais no repositório. Este valor deve ser configurado nas variáveis de
+# ambiente do projeto no painel do Cloudflare Pages.
+ERP_ADMIN_TOKEN = ""
+
+# Frase secreta e PIN do administrador para o console oculto. Estes valores são
+# utilizados pelas rotas `api/admin/verify` e devem ser definidos via variáveis de
+# ambiente no painel. Deixe em branco aqui para evitar vazamento de segredos.
+ERP_ADMIN_PHRASE = ""
+ERP_ADMIN_PIN = ""
+
+# Credenciais do cliente interno fixo (admin). Não configure valores
+# sensíveis neste arquivo de exemplo. Essas variáveis controlam o
+# cliente interno que aparece no painel de administração. Se não
+# definidos no painel do Cloudflare, os valores padrão são token
+# 'b1', usuário 'admin' e senha '123'.
+ERP_INTERNAL_TOKEN = "b1"
+ERP_INTERNAL_USER = "admin"
+ERP_INTERNAL_PASS = "123"

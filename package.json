@@ -1,0 +1,7 @@
+{
+  "name": "erp-server-sync-module",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+  }
+}

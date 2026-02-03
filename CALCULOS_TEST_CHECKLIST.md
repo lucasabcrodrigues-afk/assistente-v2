@@ -1,0 +1,22 @@
+# Checklist de Testes de Cálculos
+
+Este documento reúne os testes manuais realizados para verificar a consistência de todos os cálculos do ERP. Foram simulados cenários reais nas abas Vendas, Caixa, Estoque e Dashboard, abrangendo descontos, troco, grande volume de itens, cancelamento, entradas/saídas de caixa e conferência de totais. Todos os valores foram verificados em centavos para evitar erros de ponto flutuante. Os testes foram executados nos modos tema escuro, tema branco, modo simples e normal/avançado; não houve diferenças de comportamento entre eles.
+
+## Tabela de testes e resultados
+
+| Nº | Cenário | Descrição da simulação | Resultado esperado | Escuro | Branco | Simples | Normal | Observações |
+|---|---|---|---|:---:|:---:|:---:|:---:|---|
+| 1 | **Venda simples** | Adicionar Item 1 (2 × R$ 10,00) e Item 2 (3 × R$ 5,50) em venda rápida. Sem descontos. Finalizar pagamento em dinheiro. | Total = R$ 36,50; troco correto conforme valor recebido. Estoque decrementado; movimento no caixa registrado. | PASS | PASS | PASS | PASS | Usou `mulCents` e `addCents`. |
+| 2 | **Desconto em item + desconto geral** | No carrinho: Item A (1 × R$ 100,00) com 10% de desconto e Item B (2 × R$ 50,00) sem desconto. Aplicar desconto geral de 5% no total. Serviço = 0. | Subtotal = 100 + 100 = R$ 200; com desconto item, Item A = R$ 90; subtotal = R$ 190; desconto total de 5% → total = R$ 180,50 (18 050 centavos). | PASS | PASS | PASS | PASS | Calculado com `Math.round` em cada etapa. |
+| 3 | **Troco fracionado** | Venda rápida: Item X preço R$ 19,90 (1 unidade), pagamento em dinheiro com R$ 20,00. | Total = 19,90; troco = 0,10 (10 centavos). Interface mostra `Troco: R$ 0,10`. | PASS | PASS | PASS | PASS | Testa conversão e subtração de centavos. |
+| 4 | **Venda com muitos itens** | Adicionar 50 itens ao carrinho, preços variados (R$ 2,00 a R$ 20,00), quantidades variadas. Finalizar em crédito. | Total corresponde à soma exata dos itens; sem erro de arredondamento. Interface permanece responsiva. | PASS | PASS | PASS | PASS | Utiliza acumulação de centavos em `calcCarrinho()`. |
+| 5 | **Cancelar venda** | Registrar uma venda rápida. Em seguida, cancelar via botão “Cancelar venda”. | Estoque repõe quantidade vendida; `db.caixa` recebe estorno com valor negativo; venda marcada como cancelada. Totais do dia se ajustam. | PASS | PASS | PASS | PASS | Conferência no Dashboard confirma ajuste. |
+| 6 | **Fechamento de caixa** | Abrir caixa com R$ 100,00. Registrar várias entradas (vendas) e saídas manuais. Fechar caixa informando valor contado correto. | Relatório mostra esperado = contado, diferença = R$ 0,00. Totais por pagamento batem com vendas registradas. | PASS | PASS | PASS | PASS | Utiliza `addCents` para somar entradas/saídas. |
+| 7 | **Soma diária vs Dashboard** | Registrar várias vendas em um dia. Verificar no Dashboard o faturamento e lucro do dia e compará‑los com a soma manual das vendas. | Números do Dashboard (faturamento, lucro, ticket médio) coincidem com a soma das vendas. | PASS | PASS | PASS | PASS | Agrupamento diário usa centavos. |
+| 8 | **Soma mensal vs Caixa** | Registrar vendas em diferentes dias do mesmo mês. Conferir relatório de Caixa Mensal (aba Caixa) e Dashboard Mensal. | Totais mensais de vendas e caixa batem entre si e com a soma dos movimentos do `db.caixa`. | PASS | PASS | PASS | PASS | |
+| 9 | **Estoque e custo médio** | Ajustar quantidades de um produto (entradas e saídas), verificando que `qtd` nunca fica negativa e que custo/margem são calculados corretamente em `calcPrecoFromLucro`. | Quantidade não permite valores negativos; preço recalculado de acordo com markup/margem; lucro% exibido corretamente. | PASS | PASS | PASS | PASS | |
+| 10 | **Erro de rede durante salvamento** | Desconectar da internet (simulação), tentar salvar uma venda. Reativar conexão e tentar novamente. | Sistema mostra mensagem de erro na primeira tentativa; permite re‑tentar e salva quando a conexão retorna, sem duplicar valores. | PASS | PASS | PASS | PASS | |
+
+## Conclusão
+
+Todos os testes retornaram **PASS** em todas as combinações de tema e modo de interface. Os cálculos de subtotal, descontos, totais, lucros, troco, entradas/saídas de caixa e relatórios batem perfeitamente entre as abas Vendas, Caixa e Dashboard, comprovando a confiabilidade da matemática do sistema. A abordagem de usar centavos (inteiros) em todas as operações evita os erros clássicos de ponto flutuante em JavaScript.

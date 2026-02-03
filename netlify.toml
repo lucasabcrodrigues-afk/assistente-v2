@@ -1,0 +1,15 @@
+# netlify.toml (EXEMPLO)
+# Copie este arquivo para a raiz do seu projeto como "netlify.toml" se você ainda não tiver um.
+# Ajuste publish/command se você usa build.
+
+[build]
+  publish = "."
+  command = ""
+
+[functions]
+  directory = "netlify/functions"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

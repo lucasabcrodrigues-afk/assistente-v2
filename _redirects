@@ -1,0 +1,5 @@
+# Redirect configuration for SPA on Netlify/Pages.
+# Ensures that all application routes are served by index.html, while API routes are left untouched.
+
+/api/*    /api/:splat   200
+/*        /index.html   200

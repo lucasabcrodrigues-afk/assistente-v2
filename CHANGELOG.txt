@@ -1,0 +1,117 @@
+ERP Comercial Profissional – V1 Oficial (2026‑02‑01)
+
+Esta é a primeira versão oficial (V1) do ERP Comercial Profissional entregue para publicação. O foco foi evoluir o código existente sem remover funcionalidades, agregando robustez, segurança básica e recursos de produtividade conforme solicitado.
+
+### Persistência e backup
+
+- Adicionada exportação e importação de banco (`.json`) em **Ajustes → Salvar/Carregar** com confirmação antes de substituir dados.
+- Implementado salvamento automático de backups: cada chamada a `save()` grava um snapshot dos dados em `localStorage` (chave `ERP_LUKAS_BACKUPS`), preservando até 20 versões antigas.
+- Na inicialização (`load()`), se o JSON principal estiver corrompido, o sistema tenta restaurar o último backup automático e exibe um aviso.
+- Registrado timestamp (`_meta.savedAt`) a cada salvamento para controle de versão.
+- Função global `validateDB()` verifica integridade básica do banco (códigos duplicados, campos obrigatórios) e mostra avisos via console.
+
+### Integridade e consistência
+
+- `normalizeDB()` expandido para normalizar novas coleções e garantir valores padrão mesmo em bancos antigos.
+- Adicionada validação de duplicidade de código no estoque.
+
+### Estoque
+
+- **Busca avançada:** agora suporta múltiplos termos sem acentos (ex.: “cafe 500g”), destacando ocorrências com `<mark>`. O atalho `/` foca a busca e `ESC` a limpa.
+- **Filtros rápidos:** botões para filtrar produtos abaixo do mínimo, com lucro negativo, sem preço ou sem custo. Botões indicam estado ativo.
+- **Ordenação:** cabeçalhos das colunas clicáveis alternam a ordenação (asc/desc) por Código, Nome, Quantidade, Mínimo, Custo, Preço ou Lucro.
+- **Paginação:** lista de estoque paginada (50 itens por página) com controles de navegação. Mantém desempenho em estoques grandes.
+- Ajustes visuais e melhorias de acessibilidade: destaque de busca usa cor primária; estado ativo de filtros e paginação realçado.
+ - **Exibição detalhada de lucro:** um botão de alternância exibe agora não apenas o lucro unitário, mas também o percentual de lucro (markup ou margem), o lucro total por item (lucro unitário multiplicado pela quantidade em estoque) e o custo total. O título da coluna informa se o cálculo está em modo Markup ou Margem.
+
+### Segurança mínima
+
+- Bloqueio de login após 5 tentativas inválidas. O bloqueio dura 30 segundos e é armazenado no `localStorage` para persistir entre recarregamentos.
+- Contadores de tentativas são limpos após login bem‑sucedido.
+
+### UX/UI
+
+- Inclusão de marcação de destaque para resultados de busca.
+- Placeholder da busca orienta sobre atalhos disponíveis.
+- Botões de filtros e paginação com classe `active` para indicar estado ligado.
+- Melhor contraste no modo escuro e mensagens de erro específicas.
+
+### Refatoração
+
+- Adição de várias funções auxiliares: `removeAccents()`, `updateEstoqueSearch()`, `toggleEstoqueFilter()`, `sortEstoque()`, `setEstoquePage()`, `buildEstoquePagination()`, `highlightMatches()`, `storeBackup()`, `restoreLatestBackup()` e `validateDB()`.
+- Comentários detalhados espalhados pelo código para facilitar manutenção.
+- Sem remoção de funcionalidades existentes; todas as áreas originais (vendas, caixa, gráficos, etc.) permanecem íntegras.
+
+### Cálculo de lucro e arredondamento
+
+- Adicionada configuração global para selecionar o método de cálculo de lucro: **Markup** (lucro calculado sobre o custo) ou **Margem** (lucro calculado sobre o preço final). Essa seleção está disponível no formulário de cadastro/edição de produtos e é persistida no metadata.
+- Implementada opção de arredondamento do preço ao calcular o valor de venda: sem arredondamento, final **0,99**, final **0,90** ou **inteiro**. O arredondamento é aplicado sempre que o preço de venda é gerado a partir da porcentagem de lucro.
+- A função `calcPrecoFromLucro()` aplica o método de cálculo e o arredondamento configurado ao gerar o preço de venda para produtos novos ou editados.
+
+### Vendas
+
+- **Descontos:** adicionados campos separados para desconto por item e desconto no total (em porcentagem). Os valores são aplicados em sequência e registrados no objeto de venda.
+- **Pagamento dividido (split):** a venda rápida suporta agora um segundo meio de pagamento e valor correspondente. Cada parcela gera um lançamento distinto no caixa com o identificador de grupo compartilhado.
+- **Confirmação de venda sem estoque:** ao tentar vender uma quantidade superior ao estoque disponível, o sistema alerta e pergunta se o usuário deseja prosseguir.
+- **Confirmação para produtos sem preço:** vendas de itens sem preço definido solicitam confirmação explícita para evitar erros.
+- O cálculo de troco foi ajustado para considerar descontos e pagamentos divididos.
+
+### Relatórios e exportação
+
+- Adicionado botão **“Exportar CSV de Vendas”** em **Ajustes → Salvar/Carregar**. O arquivo gerado contém todas as vendas registradas, incluindo ID, data, código, nome, quantidade, valor de serviço, total da venda, forma de pagamento principal, forma de pagamento secundária e valor, descontos aplicados, lucro obtido, status de cancelamento e identificador de grupo. Ideal para importação em planilhas ou sistemas externos.
+
+### Preferências, licença e proteção (2026‑02‑02)
+
+* **Seção Preferências:** adicionada uma nova subpágina em **Ajustes** centralizando as opções de **Temas** (modo padrão e modo branco), **Interface** (padrão ou simples) e **Configurações de Vendas**. Esta última permite ativar ou desativar o botão de scanner, o módulo de orçamento e o cálculo de mão de obra/serviço nas telas de estoque e vendas. O estado das preferências é salvo imediatamente no banco e refletido em toda a interface; o rótulo dos botões muda entre “Desativar” e “Ativar” conforme a função está em uso.
+* **Destacar preferências ativas:** os botões de preferências agora usam a classe `active` quando o recurso está habilitado, melhorando a percepção visual do estado atual.
+* **Licenciamento básico:** implementado mecanismo de verificação de licença. O sistema grava a hora da última conexão bem‑sucedida à internet; se permanecer offline por mais de 24 horas, ou se for executado fora de um domínio HTTP/HTTPS (por exemplo, um arquivo local baixado), um overlay bloqueia o uso e orienta o usuário a se conectar. Para facilitar o desenvolvimento, o parâmetro de query `?dev=1` desativa temporariamente o bloqueio em ambientes locais.
+* **Recarregamento automático:** a aplicação agenda um recarregamento a cada 24 horas para garantir que a verificação de licença ocorra regularmente. Caso o site seja removido do Netlify, as instâncias acessadas pelos clientes expirarão após o próximo ciclo.
+* **Melhorias de UX finas:** ajustes visuais nas novas preferências, mensagens mais claras no overlay de licença e indicação de estado ativo nos botões de configuração.
+
+### Devedores: edição, remoção e dashboard inteligente (2026‑02‑02)
+
+* **Edição de devedores:** na lista de devedores/fiado, adicionamos um botão **Editar** para cada registro. Ao clicar, o formulário acima é preenchido com os dados do devedor e o botão principal se torna **Salvar**; um botão **Cancelar edição** permite voltar ao modo de inserção. As alterações são salvas mantendo o mesmo ID e status (pago ou não), preservando a consistência do banco.
+* **Remoção aprimorada:** o botão **Apagar** agora chama `deleteDevedor()` que confirma a remoção e, após apagar, atualiza imediatamente o dashboard e a lista. O método também invoca `render()` para garantir que alertas e métricas de devedores sejam recalculadas.
+* **Atualização de dados após adição/edição/remoção/pagamento:** todas as operações de criação, edição, exclusão e recebimento de devedores agora chamam `render()` além de `renderDevedores()` para atualizar o novo painel de devedores e demais métricas.
+* **Dashboard inteligente de devedores:** um novo card **“Devedores”** aparece no painel somente quando há devedores em aberto. O bloco mostra o total em aberto, a quantidade de devedores pendentes e os cinco maiores devedores com uma barra proporcional ao valor. Se não houver fiado pendente, o card fica oculto, deixando o painel mais limpo. O card é inserido na mesma área dos gráficos de estoque e não quebra a disposição responsiva.
+
+### Design system, interface simples remasterizada e modo smartphone (2026‑02‑02)
+
+Para facilitar a vida de usuários em diferentes dispositivos, introduzimos um **mini design system** com variáveis de espaçamento, cores e componentes reutilizáveis, além de duas novas experiências: uma **interface simples remasterizada** (focada em desktop/tablet) e um **modo smartphone** completamente reorganizado.
+
+* **Design system:** criadas variáveis CSS (`--space-xs`, `--space-sm`, `--space-md`, `--radius-btn`, `--radius-card`, `--shadow` etc.) que centralizam cores, espaçamentos e raios de borda. Definidos estilos padronizados para botões (`.button`, `.button-primary`, `.button-secondary`, `.button-danger`), inputs, cards e badges. Esse sistema torna o visual mais coeso e simplifica futuras customizações.
+* **Interface simples remasterizada:** reorganização da hierarquia visual e ajustes de tipografia e espaçamento em todas as páginas, tornando a experiência mais limpa e intuitiva. Campos e ações importantes são destacados, os formulários têm alinhamento consistente e os botões seguem padrões de primário/ secundário/ perigo. A navegação principal continua no topo da página, mas com espaçamento e contraste melhorados.
+* **Modo smartphone:** introduzida uma terceira interface pensada do zero para telas pequenas. Quando ativado (manualmente em **Ajustes → Preferências → Modo de Tela**, ou automaticamente quando a largura da janela é inferior a 600 px), a classe `smartphone` é adicionada ao `<body>` e várias adaptações ocorrem:
+  * A navegação superior é ocultada e substituída por uma barra inferior (`#bottomNav`) com ícones e textos grandes, facilitando a troca entre Dashboard, Estoque, Vendas, Caixa e Ajustes com o polegar.
+  * O tamanho base da fonte aumenta para melhorar a legibilidade. Todos os cards e formulários recebem `padding` adicional e alvos de toque mais generosos.
+  * Tabelas são convertidas em **listas de cartões**: os cabeçalhos desaparecem e cada linha da tabela vira um bloco com bordas e sombra. Os rótulos são mostrados com `data-label` nos `<td>` para indicar o significado de cada coluna, e o JavaScript garante que esses rótulos sejam aplicados sempre que a lista é atualizada.
+  * Espaço no rodapé é reservado para que o conteúdo não fique oculto pela barra inferior.
+  * Função `applyUIMode()` avalia a configuração salva e a largura da janela, alternando entre desktop, smartphone ou modo automático. Um seletor em **Preferências** permite forçar um modo específico ou deixar em automático. A função `adaptTables()` é invocada em cada `render()` para garantir que linhas dinâmicas (estoque, vendas, carrinho) recebam os rótulos corretos quando o modo smartphone está ativo.
+  * O `show()` agora também marca o botão ativo na barra inferior, facilitando a orientação do usuário.
+* **Preferências atualizadas:** além dos temas e da escolha de interface (padrão vs. simples), há agora um seletor de **Modo de Tela** (Desktop, Automático ou Smartphone). O estado escolhido é salvo no `localStorage` e aplicado ao recarregar.
+* **Responsividade total:** toda a interface foi testada em resoluções de 360 × 640 px (smartphone pequeno), 414 × 896 px (smartphone grande), 768 × 1024 px (tablet) e 1366 × 768 px (desktop). A aplicação se ajusta sem quebrar fluxos. Mensagens de erro, toasts e modais respeitam a nova hierarquia visual.
+
+Essas melhorias tornam o ERP acessível e agradável em qualquer dispositivo, com particular atenção a usuários mais idosos ou com baixa familiaridade digital, sem sacrificar nenhuma funcionalidade existente.
+
+### Sistema de usuários, ajustes reorganizados e ferramentas (2026‑02‑02)
+
+* **Sistema de usuários com papéis e permissões:** introduzido um controle granular de acesso. Agora os usuários possuem papéis (Admin, Operador, Caixa, Consulta) e um conjunto de permissões (editar custo, editar preço, apagar produto, cancelar venda, fechar caixa, exportar/importar backup e gerenciar usuários). O método `hasPerm()` verifica essas permissões em todas as ações sensíveis; tentativas sem permissão exibem o toast “Sem permissão”. A função `ensureUserPerms()` normaliza bancos antigos para incluir o novo campo `perms` em cada usuário. Migramos papéis antigos (`funcionario`, `gerente`) para os novos (`consulta`, `operador`).
+* **Gestão de usuários completa:** em **Ajustes → Usuários** administradores podem criar novos usuários (definindo papel e senha inicial), editar papel e permissões individuais, ativar/desativar contas e resetar a senha. A tabela de usuários ganhou uma coluna de ações com botões **Editar**, **Desativar/Ativar** e **Resetar Senha**. Uma carta de edição aparece abaixo da lista permitindo alterar permissões via checkboxes. O estado da conta (ativo/inativo) é persistido no banco.
+* **Auditoria local:** ações como criação/edição de usuários, alteração de preços/custos, cancelamento de vendas e fechamento de caixa agora são registradas em um **log de auditoria** armazenado no banco. Um botão em **Ajustes → Segurança** permite visualizar o histórico em formato de tabela, mostrando data/hora, usuário, ação e detalhes. Há também um botão para limpar o log (com confirmação). As funções `addAudit()` e `audit` no banco centralizam o registro de eventos.
+* **Segurança aprimorada:** adicionado controle de **expiração de sessão por inatividade** (configurável em minutos) e **limite de tentativas de login** (quantidade de erros antes de bloquear o acesso por 30 s). Esses valores podem ser ajustados em **Ajustes → Segurança** e são persistidos no `localStorage`. A função `startSessionWatcher()` monitora a atividade e faz logout automático. Um botão “Resetar Senha” no gerenciamento de usuários substitui a senha pelo valor padrão.
+* **Ajustes reorganizados em categorias:** a antiga tela confusa de ajustes foi redesenhada. Agora um painel inicial exibe botões para **Empresa**, **Usuários**, **Aparência**, **Financeiro**, **Backup & Dados**, **Segurança**, **Ferramentas** e **Sair**. Cada botão abre um card separado com opções agrupadas e campos autoexplicativos. Preferências de tema, tamanho de fonte e layout (modo simples vs completo) estão em **Aparência**. Cálculo de lucro e arredondamento foram movidos para **Financeiro**. Expiração de sessão, limite de tentativas e auditoria ficam em **Segurança**. O menu **Ferramentas** reúne calculadora, conversor de unidades, gerador de senhas, sorteio/aleatório e o novo diagnóstico.
+* **Diagnóstico de dados:** criado um utilitário em **Ferramentas** que executa `validateDB()`, verifica duplicidade de códigos, campos vazios ou valores inválidos e exibe problemas encontrados. Se nenhuma inconsistência for detectada, um aviso informa que o banco está íntegro. O diagnóstico não altera dados, apenas orienta o usuário sobre possíveis correções.
+* **Acessibilidade e fonte grande:** adicionada opção de **Fonte Maior** em Aparência. Ao ativar, todas as fontes aumentam e a classe `.large-font` é aplicada ao `<body>`, melhorando a leitura para usuários com baixa visão. A preferência fica salva no banco. O layout simples também foi refinado com botões grandes, ícones e textos claros para navegação mais intuitiva.
+* **Correções e compatibilidade:** ajustado `aplicarRestricoesPorPerfil()` para ocultar a seção de usuários no menu de ajustes e na navegação principal quando o usuário não possui a permissão `manageUsers`. Corrigido bug de definição tardia de `DEFAULT_PERMISSIONS` que impedia o login inicial. Realocada a carta de edição de usuário para fora do dashboard, evitando sobreposição. Todos os fluxos originais (estoque, vendas, caixa, devedores, relatórios) foram retestados após a adição do sistema de usuários para garantir que permanecessem funcionais.
+
+### Migração para Cloudflare e sincronização em nuvem (2026‑02‑03)
+
+* **Conversão de funções serverless:** todas as funções `netlify/functions` foram convertidas para Cloudflare Workers, alocadas em `functions/.netlify/functions`. As rotas REST continuam idênticas (`/.netlify/functions/erp_save`, `erp_load`, `erp_health`), mas agora utilizam o `KV` Binding **`ERP_SYNC`** definido no arquivo `wrangler.toml` para persistir dados e removem a dependência do pacote `@netlify/blobs`. O `netlify.toml` e a pasta `netlify/` foram removidos.
+* **Persistência multi‑dispositivo:** foi adicionada a flag `enableCloudSync` e o campo `cloudToken` ao objeto global `UPDATE_FLAGS`. Quando ativado, o ERP salva automaticamente o banco de dados no backend do Cloudflare (KV) após cada `save()` e, ao iniciar, realiza uma mesclagem inteligente com o banco remoto (`mergeFromServer`), utilizando a estratégia **last‑write‑wins** com soma de quantidades de estoque para itens com o mesmo código. Essa mesclagem evita perda de dados caso o usuário utilize o ERP em diferentes dispositivos. A chave do usuário (token) é passada no cabeçalho `x‑erp‑user`.
+* **Endpoints dinâmicos para entidades:** criados novos endpoints REST (`/.netlify/functions/erp_crud/{entity}`) que permitem operações **CRUD** independentes para coleções como estoque, carrinho, vendas, preferências e notas. Cada chamada exige o cabeçalho `x‑erp‑user` para isolar os dados por usuário ou empresa, e utiliza o mesmo KV para armazenamento. Esses endpoints permitem futura integração fina entre dispositivos e módulos externos.
+* **Preferências reorganizadas:** a página de preferências foi dividida em seções temáticas (Temas, Layout, Modo de Tela, Acessibilidade e Configurações de Vendas) e ganhou novos botões para ativar ou desativar **Venda Rápida**, **Nota Fiscal em PDF** e **Nota Fiscal Impressa**. Os botões exibem “Ativar” ou “Desativar” conforme o estado atual e usam a classe `active` quando habilitados, tornando a interface mais intuitiva.
+* **Venda rápida opcional e venda completa padrão:** a aplicação agora abre sempre no modo **Venda Completa**. Um novo botão de preferência permite desativar completamente a Venda Rápida; quando desativada, os botões e formulários da venda rápida ficam ocultos e o usuário sempre utiliza o carrinho.
+* **Remoção do segundo pagamento:** a segunda forma de pagamento foi removida da Venda Rápida para simplificar o fluxo de venda. O cálculo de troco e a confirmação continuam disponíveis para um único pagamento.
+* **Scanner unificado com câmera real:** o botão de scanner nas vendas agora utiliza a câmera do dispositivo via **BarcodeDetector** (ou `html5‑qrcode` como fallback) tanto na venda completa quanto na rápida. Quando um código é lido, o item é adicionado automaticamente ao carrinho ou tem a quantidade incrementada. Se a câmera não estiver disponível, o sistema cai para o scanner legado/entrada manual. O botão de scanner continua visível apenas se o recurso “Scanner” estiver habilitado nas preferências.
+* **Emissão de nota fiscal em PDF ou impressa:** incluídos dois toggles em **Preferências** para ativar a emissão automática de **Nota Fiscal em PDF** e/ou **Impressa**. Após a finalização de uma venda (tanto rápida quanto pelo carrinho), se estas opções estiverem habilitadas, a aplicação gera o recibo em HTML e invoca `window.print()` para impressão ou oferta de download em PDF. O recurso usa `buildReceiptHTML()` para montar o conteúdo e não afeta o fluxo de vendas caso a impressão falhe.
+* **Documentação e changelog atualizados:** o `CHANGELOG.txt` registra estas mudanças e o `wrangler.toml` foi adicionado com instruções para configurar o KV namespace e o token de administrador. As seções de documentação explicam a nova sincronização em nuvem e os novos endpoints de CRUD.

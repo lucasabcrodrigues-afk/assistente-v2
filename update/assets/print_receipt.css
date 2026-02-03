@@ -1,0 +1,24 @@
+/* update/assets/print_receipt.css
+ * Estilos de recibo não fiscal.  Esta folha de estilos é usada
+ * pelo módulo de impressão de recibos do UX/integrations e define
+ * aparência de tabelas e elementos.  Copiada do módulo UX
+ * original (mod5/assets/print_receipt.css).
+ */
+
+@media print {
+  body { margin: 0; }
+  .no-print { display:none !important; }
+}
+.receipt {
+  font-family: Arial, sans-serif;
+  color: #111;
+}
+.receipt .center { text-align: center; }
+.receipt .muted { color: #444; }
+.receipt .line { display: flex; justify-content: space-between; gap: 12px; }
+.receipt table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+.receipt th, .receipt td { border-bottom: 1px dashed #ddd; padding: 6px 2px; font-size: 12px; text-align: left; }
+.receipt .totals { margin-top: 10px; font-size: 14px; font-weight: 700; }
+.receipt.small58 { width: 58mm; }
+.receipt.small80 { width: 80mm; }
+.receipt.a4 { width: 210mm; padding: 10mm; }
