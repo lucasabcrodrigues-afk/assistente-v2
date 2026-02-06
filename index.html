@@ -743,6 +743,50 @@ body.smartphone table tbody tr td::before{
   font-weight:600;
   margin-right:8px;
 }
+
+/* =======================
+   Interface Celular (mobile-mode)
+   =======================
+   Esta variação oferece uma experiência totalmente otimizada para telas
+   pequenas na orientação vertical. Ela usa a mesma base do modo
+   smartphone (barra inferior e cartões responsivos), mas ajusta
+   margens, tipografia e o layout das grids para uma navegação ainda
+   mais intuitiva e confortável em celulares. */
+body.mobile-mode{
+  font-size: 18px;
+}
+/* Oculta a navegação superior e utiliza a barra inferior no modo
+   celular. */
+body.mobile-mode nav{
+  display:none;
+}
+body.mobile-mode #bottomNav{
+  display:flex;
+}
+/* Ajusta espaçamento inferior para acomodar a barra */
+body.mobile-mode section{
+  padding-bottom:80px;
+}
+/* Altera grids para coluna única no modo celular para facilitar a
+   leitura e a interação em telas estreitas. */
+body.mobile-mode .grid{
+  grid-template-columns:1fr !important;
+}
+/* Ajusta as estatísticas e cartões para largura total com margens
+   menores, permitindo rolagem suave. */
+body.mobile-mode .stat{
+  width:100%;
+  margin-bottom:12px;
+}
+body.mobile-mode .card{
+  margin:12px 0;
+}
+/* Melhora o espaçamento dos botões na barra inferior em telas
+   menores. */
+body.mobile-mode #bottomNav button{
+  padding:12px 0;
+  font-size:14px;
+}
 </style>
     <!-- Biblioteca de leitura de códigos de barras (QuaggaJS) -->
     <!-- Substituímos a biblioteca QuaggaJS pela html5‑qrcode para suporte moderno a scanners -->
@@ -763,7 +807,7 @@ body.smartphone table tbody tr td::before{
       <input id="l_pass" type="password" placeholder="Senha" autocomplete="current-password" />
     </div>
     <!-- Campo opcional de token para multi‑cliente -->
-    <label for="l_token" style="font-size:14px;margin-top:8px;display:block;">Token (opcional)</label>
+    <label for="l_token" style="font-size:14px;margin-top:8px;display:block;">Token</label>
     <input id="l_token" placeholder="Ex.: B1, B2, B3" autocomplete="off" />
     <br>
     <button onclick="doLogin()">Entrar</button>
@@ -1002,7 +1046,11 @@ body.smartphone table tbody tr td::before{
         <!-- Utiliza a nova função de scanner para estoque. Esta ação abre a câmera (ou input) e preenche
              automaticamente o campo apropriado. A label permanece fixa para não ser sobrescrita pelo
              updateButtons(). -->
-        <button id="skan_estoque_btn" onclick="onScannerEstoqueClick()" style="padding:8px 10px; border-radius:8px;">📷 Scanner</button>
+        <!-- Atualizado para usar o módulo de leitura Skan. O botão agora chama
+             toggleSkan('estoque'), que aciona a câmera ou o leitor USB para
+             preencher automaticamente o código do produto. O atributo type
+             continua como "button" para evitar submissão de formulários. -->
+        <button id="skan_estoque_btn" type="button" onclick="toggleSkan('estoque')" style="padding:8px 10px; border-radius:8px;">📷 Scanner</button>
       </div>
       <div class="grid">
         <input id="e_cod" placeholder="Código" />
@@ -1039,6 +1087,22 @@ body.smartphone table tbody tr td::before{
 
     <div class="card">
       <h3>Estoque Atual</h3>
+      <!-- Botão para imprimir uma relação simples do estoque. Ao clicar, gera um
+           documento em nova janela contendo os itens do estoque com código,
+           nome e valor de venda (preço). O botão usa a classe ghost para
+           harmonizar com outros controles e um pequeno ícone de impressora. -->
+      <button id="btnPrintRelacao" class="ghost" onclick="imprimirRelacao()" style="margin-bottom:8px;">
+        🖨️ Imprimir Relação
+      </button>
+
+      <!-- Seleção de ordenação do estoque: permite alternar entre alfabética e data de adição -->
+      <div id="estoqueOrderWrap" style="display:flex; align-items:center; gap:6px; margin-bottom:8px;">
+        <label for="estoqueOrderSelect">Ordenar por:</label>
+        <select id="estoqueOrderSelect" onchange="setEstoqueOrder(this.value)">
+          <option value="nome">Alfabética (A-Z)</option>
+          <option value="added">Data de adicionado</option>
+        </select>
+      </div>
       <!-- Campo de busca para filtrar itens do estoque por código ou nome -->
       <div id="estoqueSearchWrap" style="display:flex; align-items:center; gap:6px; margin:6px 0;">
         <span style="font-size:1.2em;">🔎</span>
@@ -1126,7 +1190,10 @@ body.smartphone table tbody tr td::before{
           <input id="v_desc_total" type="number" placeholder="Desc total %" min="0" step="0.01" title="Desconto percentual no total" />
           <!-- Botão para abrir o leitor de códigos diretamente na venda rápida -->
           <!-- Scanner: unificado com modo carrinho; usa openCamera se disponível -->
-          <button id="btnScannerQuick" title="Scanner" onclick="onScannerQuickClick()" style="padding:9px 10px; border-radius:10px;">📷 Scanner</button>
+          <!-- O scanner da venda rápida agora usa o módulo de leitura Skan. Ao clicar,
+               inicia a leitura via câmera ou leitor USB para inserir o código do produto.
+               Mantém-se type="button" para não disparar submissão do formulário. -->
+          <button id="btnScannerQuick" type="button" title="Scanner" onclick="toggleSkan('vendas')" style="padding:9px 10px; border-radius:10px;">📷 Scanner</button>
           <select id="v_pag">
             <option value="dinheiro">Dinheiro</option>
             <option value="pix">Pix</option>
@@ -1211,7 +1278,10 @@ body.smartphone table tbody tr td::before{
                  Ao invés de abrir o modal legado de scanner no modo de venda completa, utilizamos
                  a função onScannerQuickClick() que aciona o leitor de código moderno via Update.scanner.
                  Isso remove a dependência do sistema de scanner separado na venda completa. -->
-            <button id="btnScannerCart" class="ghost" onclick="onScannerQuickClick()">📷 Scanner</button>
+            <!-- Scanner no carrinho de venda completa usando o módulo Skan. Este botão
+                 compartilha o mesmo contexto 'vendas' da venda rápida para permitir
+                 leituras de código por câmera e leitores USB. -->
+            <button id="btnScannerCart" type="button" class="ghost" onclick="toggleSkan('vendas')">📷 Scanner</button>
             <button id="btnPrintReceipt" class="ghost" style="display:none" onclick="imprimirUltimoComprovante()">🖨 Imprimir comprovante</button>
             <!-- Botão para abrir o módulo de orçamento também na venda completa -->
             <button id="btnOrcamentoCart" class="ghost" onclick="abrirOrcamentoUI()">🧾 Orçamento</button>
@@ -1225,7 +1295,7 @@ body.smartphone table tbody tr td::before{
     </div>
 
     <div class="card hiddenInSimple">
-      <h3>Histórico de Vendas</h3>
+      <h3>Histórico de Vendas <button id="btnVendasOrder" class="ghost small" title="Alternar ordem" style="margin-left:8px;" onclick="toggleVendasOrder()">⇅ Ordem</button></h3>
       <table>
         <thead>
           <tr><th>Data</th><th>Produto</th><th>Qtd</th><th>Total</th><th>Pagamento</th><th>Status</th><th>Ação</th></tr></thead>
@@ -1447,6 +1517,11 @@ body.smartphone table tbody tr td::before{
         <input id="p_nome" placeholder="Nome da empresa" />
         <input id="p_cnpj" placeholder="CNPJ" />
         <input id="p_contato" placeholder="Contato (telefone / e-mail)" />
+        <!-- Campos adicionais: endereço, celular e e‑mail. Foram incluídos aqui para que possam
+             ser preenchidos juntos com os demais dados da empresa. -->
+        <input id="p_endereco" placeholder="Endereço" />
+        <input id="p_celular" placeholder="Celular" />
+        <input id="p_email" placeholder="E-mail" />
       </div>
       <!-- Campo para upload do logotipo da empresa -->
       <div style="margin-top:10px;">
@@ -1479,8 +1554,10 @@ body.smartphone table tbody tr td::before{
              Cada botão abaixo ativa uma subseção específica ou navega para outra tela. -->
         <button onclick="show('perfil')" id="btnCfg_empresa">🏢 Empresa</button>
         <button onclick="show('usuarios')" id="btnCfg_usuarios">👥 Usuários</button>
-        <button onclick="toggleSubAjuste('preferencias')" id="btnCfg_aparencia">🎨 Aparência</button>
-        <button onclick="toggleSubAjuste('financeiro')" id="btnCfg_financeiro">💰 Financeiro</button>
+        <button onclick="toggleSubAjuste('preferencias')" id="btnCfg_aparencia">⚙️ Preferências</button>
+        <!-- Botão Financeiro removido conforme solicitação do cliente. O módulo financeiro permanece acessível internamente, mas não é exibido na navegação de ajustes. -->
+        <!-- <button onclick="toggleSubAjuste('financeiro')" id="btnCfg_financeiro">💰 Financeiro</button> -->
+        <!-- Removido botão de Orçamentos dos Ajustes. O acesso aos orçamentos agora foi movido para Ferramentas. -->
         <button onclick="toggleSubAjuste('arquivo')" id="btnCfg_dados">💾 Backup &amp; Dados</button>
         <!-- Segurança removido da navegação (funções permanecem acessíveis via código) -->
         <!-- <button onclick="toggleSubAjuste('seguranca')" id="btnCfg_seguranca">🔒 Segurança</button> -->
@@ -1505,6 +1582,8 @@ body.smartphone table tbody tr td::before{
         <button onclick="exportBackup()">💾 Salvar Backup (Arquivo)</button>
         <!-- Abre um seletor de arquivo para importar um JSON de backup no formato erp‑backup. -->
         <button onclick="openImportBackup()">📂 Carregar Backup (Arquivo)</button>
+        <!-- Mescla um JSON de backup com o banco atual sem sobrescrever. Somente adiciona/atualiza registros. -->
+        <button onclick="openImportBackupMerge()">➕ Mesclar Arquivo</button>
         <!-- Permite restaurar rapidamente o backup automático mais recente caso o banco esteja corrompido. -->
         <button onclick="restoreLastBackupUI()">🔄 Restaurar Último Backup</button>
         <!-- Exporta todas as vendas registradas em formato CSV para análise externa. -->
@@ -1512,6 +1591,8 @@ body.smartphone table tbody tr td::before{
       </div>
       <!-- O input de arquivo fica dentro dos ajustes -->
       <input id="loadFile" type="file" accept="application/json" style="display:none" />
+      <!-- Input para selecionar um arquivo de backup a ser mesclado. Oculto até ser invocado pelo botão Mesclar Arquivo. -->
+      <input id="mergeFile" type="file" accept="application/json" style="display:none" />
       <!-- Seção de sincronização com servidor via Netlify Functions -->
       <div id="serverSyncSection" style="margin-top:12px;">
         <h4>☁️ Sincronização com Servidor (KV)</h4>
@@ -1544,6 +1625,9 @@ body.smartphone table tbody tr td::before{
         <button onclick="showTool('despesas')">Despesas</button>
         <button onclick="showTool('ai')">Assistente Virtual</button>
         <button onclick="showTool('diag')">Diagnóstico de Dados</button>
+        <!-- Adiciona acesso aos orçamentos dentro das Ferramentas. Ao clicar, abre o cartão de orçamentos. -->
+        <!-- Renomeado para Histórico de Orçamentos. Mantemos o mesmo id interno para preservar a lógica existente. -->
+        <button onclick="showTool('orcamentos')">📜 Histórico de Orçamentos</button>
       </div>
 
       <!-- Cards de cada ferramenta, visíveis de acordo com a seleção -->
@@ -1720,8 +1804,28 @@ body.smartphone table tbody tr td::before{
           <button onclick="addDespesaRow()">➕ Adicionar Despesa</button>
           <button onclick="calcularDespesas()">📊 Calcular Rentabilidade</button>
           <button class="ghost" onclick="limparDespesas()">🧹 Limpar Despesas</button>
+          <!-- Novo botão para contabilidade completa: balanços e relatórios. -->
+          <button onclick="toggleContabilidade()">📑 Contabilidade</button>
         </div>
         <div id="despesasResultado" style="margin-top:10px;"></div>
+        <!-- Card de contabilidade: inicializa oculto e é exibido quando o botão de contabilidade é pressionado. -->
+        <div id="contabilidadeCard" class="card" style="display:none; margin-top:12px;">
+          <h4>📑 Contabilidade</h4>
+          <div class="small">Selecione um período para gerar o balanço:</div>
+          <div class="flex" style="gap:8px; flex-wrap:wrap; margin-top:8px;">
+            <button onclick="contabPeriodo('dia')">Hoje</button>
+            <button onclick="contabPeriodo('mes')">Mês atual</button>
+            <button onclick="contabPeriodo('3meses')">Últimos 3 meses</button>
+            <button onclick="contabPeriodo('6meses')">Últimos 6 meses</button>
+            <button onclick="contabPeriodo('ano')">Ano atual</button>
+            <input type="month" id="contabMesSel" onchange="contabPeriodo('mesSel', this.value)" style="min-width:130px;" />
+            <input type="number" id="contabAnoSel" placeholder="Ano" onchange="contabPeriodo('anoSel', this.value)" style="width:80px;" />
+          </div>
+          <div id="contabResult" style="margin-top:12px;"></div>
+          <div class="noPrint" style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
+            <button onclick="printContabilidade()">🖨 Imprimir</button>
+          </div>
+        </div>
       </div>
 
       <!-- Diagnóstico de Dados (Ferramenta) -->
@@ -1734,6 +1838,18 @@ body.smartphone table tbody tr td::before{
         <br>
         <button onclick="runDiagnostic()">Executar Diagnóstico</button>
         <div id="diag_result" style="margin-top:8px;"></div>
+      </div>
+
+      <!-- Histórico de Orçamentos (Ferramenta) -->
+      <div class="card toolCard" id="tool_orcamentos" style="display:none;">
+        <h4>📜 Histórico de Orçamentos</h4>
+        <!-- Contêiner dedicado à lista de orçamentos na área de ferramentas. Reutiliza a mesma função
+             renderOrcamentos() para popular a tabela, fornecendo a mesma experiência dos Ajustes. -->
+        <div id="orcamentosListTool"></div>
+        <div class="small" style="margin-top:8px;">
+          Os orçamentos salvos aparecem aqui. Você pode aprovar para transformar em venda (dando baixa
+          no estoque), editar ou excluir definitivamente.
+        </div>
       </div>
 
     </div><!-- fim ajusteExtras -->
@@ -1776,13 +1892,16 @@ body.smartphone table tbody tr td::before{
       <div class="grid">
         <button onclick="setInterfaceMode('standard')">Padrão Completo</button>
         <button onclick="setInterfaceMode('simple')">Modo Simples</button>
+        <button onclick="setUIMode('smartphone')">Modo Smartphone</button>
+        <!-- Removido botão "Modo Celular" para unificar smartphone/celular -->
       </div>
       <!-- Seção de modo de tela (desktop/smartphone/automático) -->
       <h4 style="margin-top:10px;">📱 Modo de Tela</h4>
       <div class="grid">
         <button onclick="setUIMode('desktop')">Forçar Desktop</button>
         <button onclick="setUIMode('auto')">Automático</button>
-        <button onclick="setUIMode('smartphone')">Forçar Smartphone</button>
+        <!-- Removido botão "Forçar Smartphone" para unificar modos -->
+        <button onclick="setUIMode('mobile')">Forçar Celular</button>
       </div>
       <div class="small" style="margin-top:6px;">
         O modo de tela determina se a navegação fica na parte superior
@@ -1811,6 +1930,29 @@ body.smartphone table tbody tr td::before{
       </div>
       <div class="small" style="margin-top:8px;">
         As preferências acima controlam a exibição de recursos sensíveis. Alterações são salvas imediatamente e refletem em toda a interface.
+      </div>
+
+      <!-- Novo: seleção de dispositivos de scanner e impressora -->
+      <h4 style="margin-top:10px;">🖨 Dispositivos</h4>
+      <div class="grid">
+        <label style="display:flex; flex-direction:column;">
+          Scanner
+          <select id="cfg_scanDevice" onchange="setScanDevice(this.value)">
+            <option value="camera">Câmera</option>
+            <option value="usb">USB / Teclado</option>
+          </select>
+        </label>
+        <label style="display:flex; flex-direction:column;">
+          Impressora
+          <select id="cfg_printerDevice" onchange="setPrinterDevice(this.value)">
+            <option value="default">Padrão</option>
+            <option value="thermal">Térmica (80mm)</option>
+          </select>
+        </label>
+      </div>
+      <div class="small" style="margin-top:6px;">
+        Selecione o dispositivo que será usado para leitura de códigos (câmera ou USB) e a impressora
+        para recibos. A opção térmica ajusta a largura do comprovante para bobinas de 80&nbsp;mm.
       </div>
     </div><!-- fim ajustePreferencias -->
 
@@ -1856,6 +1998,17 @@ body.smartphone table tbody tr td::before{
         A regra de arredondamento define o formato desejado dos valores.
       </div>
     </div><!-- fim ajusteFinanceiro -->
+
+    <!-- Ajuste Orçamentos: lista e gerencia orçamentos salvos -->
+    <div id="ajusteOrcamentos" class="card" style="display:none;">
+      <!-- Renomeado para refletir o histórico de orçamentos pendentes/aprovados -->
+      <h3>📜 Histórico de Orçamentos</h3>
+      <div id="orcamentosList"></div>
+      <div class="small" style="margin-top:8px;">
+        Os orçamentos salvos aparecem aqui. Você pode aprovar para transformar em venda (dando baixa
+        no estoque) ou excluir definitivamente.
+      </div>
+    </div><!-- fim ajusteOrcamentos -->
 
     <!-- Ajuste Segurança: configura expiração de sessão, limite de tentativas e auditoria -->
     <div id="ajusteSeguranca" class="card" style="display:none;">
@@ -2160,7 +2313,8 @@ const ESTOQUE_PAGE_SIZE = 50;
 // Página atualmente exibida.  Inicia em 1.
 let estoquePage = 1;
 // Coluna pela qual o estoque está sendo ordenado (ex.: 'cod', 'nome').
-let estoqueSortField = 'cod';
+// Ordenação inicial: ordena alfabeticamente por nome em vez do código.
+let estoqueSortField = 'nome';
 // Direção da ordenação: 1 para ascendente, -1 para descendente.
 let estoqueSortDir = 1;
 // Estado dos filtros rápidos.  Cada chave corresponde a um botão de filtro.
@@ -2207,6 +2361,20 @@ function sortEstoque(field){
   }else{
     estoqueSortField = field;
     estoqueSortDir = 1;
+  }
+  render(true);
+}
+
+// Define a ordenação do estoque com base em opções predefinidas.
+// "nome" ordena alfabeticamente de A a Z; "added" ordena pela data de adição (mais recentes primeiro).
+function setEstoqueOrder(order){
+  if(order === 'nome' || order === 'alfabetica'){
+    estoqueSortField = 'nome';
+    estoqueSortDir = 1;
+  } else if(order === 'added'){
+    estoqueSortField = 'added';
+    // Mostra os itens mais novos primeiro ao ordenar por data de adição
+    estoqueSortDir = -1;
   }
   render(true);
 }
@@ -2588,6 +2756,12 @@ function normalizeDB(d){
 
   d._meta = d._meta && typeof d._meta==="object" ? d._meta : {};
   if(!d._meta.schema) d._meta.schema = 1;
+  // --- Novos campos no metadado ---
+  // Definir dispositivo de scanner e impressora padrão caso não existam.
+  // O scanner pode ser "camera" (leitor via câmera) ou "usb" (leitor tipo teclado).
+  // A impressora pode ser "default" ou "thermal" para recibos em bobina.
+  if(typeof d._meta.scanDevice === 'undefined') d._meta.scanDevice = 'camera';
+  if(typeof d._meta.printerDevice === 'undefined') d._meta.printerDevice = 'default';
 
   d.usuarios = Array.isArray(d.usuarios) ? d.usuarios : [{user:"admin",pass:"123",role:"admin"}];
   d.empresa  = d.empresa && typeof d.empresa==="object" ? d.empresa : {nome:"",cnpj:"",contato:""};
@@ -2595,6 +2769,10 @@ function normalizeDB(d){
   d.vendas   = Array.isArray(d.vendas) ? d.vendas : [];
   d.caixa    = Array.isArray(d.caixa) ? d.caixa : [];
   d.caixaAberto = !!d.caixaAberto;
+  // --- Orçamentos ---
+  // Garante que a lista de orçamentos exista. Cada orçamento contém informações
+  // sobre cliente, itens, datas e estado (pendente/aprovado).
+  d.orcamentos = Array.isArray(d.orcamentos) ? d.orcamentos : [];
   /* garantir que agenda, devedores, notas e tarefas sejam arrays */
   d.agenda   = Array.isArray(d.agenda) ? d.agenda : [];
   d.devedores= Array.isArray(d.devedores) ? d.devedores : [];
@@ -2607,6 +2785,10 @@ function normalizeDB(d){
   d.empresa.nome = s(d.empresa.nome);
   d.empresa.cnpj = s(d.empresa.cnpj);
   d.empresa.contato = s(d.empresa.contato);
+  // Campos adicionais de empresa adicionados: endereço, celular e e-mail.
+  d.empresa.endereco = s(d.empresa.endereco);
+  d.empresa.celular = s(d.empresa.celular);
+  d.empresa.email = s(d.empresa.email);
 
   d.usuarios = d.usuarios.map(u=>{
     const nu = {...u};
@@ -2736,6 +2918,10 @@ function normalizeDB(d){
     di.nome = s(di.nome);
     di.valor_c = moneyOf(di, 'valor_c', 'valor');
     if(!Number.isFinite(di.valor_c)) di.valor_c = 0;
+    // garante que cada despesa tenha um tipo definido (fixa ou variavel)
+    // se nenhuma informação for fornecida, assume como fixa
+    const t = s(di.tipo).toLowerCase();
+    di.tipo = (t === 'variavel' || t === 'fixa') ? t : 'fixa';
     return di;
   }) : [];
 
@@ -3524,7 +3710,9 @@ function addProduto(){
     const existsOther = (db.estoque || []).some(x => s(x.cod).toLowerCase() === cod.toLowerCase() && s(x.cod) !== oldCod);
     if(existsOther){ toast("Já existe outro produto com esse código.", "bad"); return; }
 
-    db.estoque[idxOld] = { cod, nome, qtd, min, custo_c, preco_c, lucro_p };
+    // Preserve a data de adição original (added) ou define se estiver ausente
+    const existingAdded = (db.estoque[idxOld] && db.estoque[idxOld].added) ? db.estoque[idxOld].added : Date.now();
+    db.estoque[idxOld] = { cod, nome, qtd, min, custo_c, preco_c, lucro_p, added: existingAdded };
     save(); render(true);
     // Registrar auditoria de edição de produto
     addAudit('editProduct', 'Editou produto ' + cod);
@@ -3550,8 +3738,14 @@ function addProduto(){
     o.lucro_p = lucro_p;
     o.nome = nome;
     o.min = min;
+
+    // Certifique-se de que itens antigos possuam campo 'added' para permitir ordenação por data de adição
+    if(!('added' in o) || !o.added){
+      o.added = Date.now();
+    }
   } else {
-    db.estoque.push({ cod, nome, qtd, min, custo_c, preco_c, lucro_p });
+    // Quando cadastrando um item novo no estoque, armazenamos o timestamp de adição
+    db.estoque.push({ cod, nome, qtd, min, custo_c, preco_c, lucro_p, added: Date.now() });
   }
 
   save(); render(true);
@@ -3808,15 +4002,21 @@ function fecharCaixa(){
   });
 
   if($("cx_relatorio")){
-    $("cx_relatorio").innerHTML =
-      `Esperado: R$ ${centsToBR(esperado_c)}<br>`+
-      `Contado: R$ ${centsToBR(contado_c)}<br>`+
-      `Diferença: <b class="${dif_c>=0?'ok':'bad'}">R$ ${centsToBR(dif_c)}</b><br><br>`+
-      `<b>Totais por pagamento (líquido do caixa):</b><br>`+
-      `Dinheiro: R$ ${centsToBR(porPag.dinheiro)}<br>`+
-      `Pix: R$ ${centsToBR(porPag.pix)}<br>`+
-      `Débito: R$ ${centsToBR(porPag.debito)}<br>`+
-      `Crédito: R$ ${centsToBR(porPag.credito)}<br>`;
+    const expStr  = centsToBR(esperado_c);
+    const contStr = centsToBR(contado_c);
+    const difAbsStr = centsToBR(Math.abs(dif_c));
+    let report = '';
+    report += '<div><b>Resumo do Caixa</b></div>';
+    report += '<div>Valor esperado (lançamentos): R$ ' + expStr + '</div>';
+    report += '<div>Valor contado (no caixa): R$ ' + contStr + '</div>';
+    report += '<div>Diferença: <b class="' + (dif_c>=0?'ok':'bad') + '">R$ ' + difAbsStr + '</b> ' + (dif_c>=0 ? '(sobrando)' : '(faltando)') + '</div>';
+    report += '<br><div><b>Totais por forma de pagamento (entradas líquidas):</b></div>';
+    report += '<div>Dinheiro: R$ ' + centsToBR(porPag.dinheiro) + '</div>';
+    report += '<div>Pix: R$ ' + centsToBR(porPag.pix) + '</div>';
+    report += '<div>Débito: R$ ' + centsToBR(porPag.debito) + '</div>';
+    report += '<div>Crédito: R$ ' + centsToBR(porPag.credito) + '</div>';
+    report += '<div class="small" style="margin-top:6px;">O valor esperado corresponde à soma das entradas e saídas registradas no caixa. A diferença indica se houve sobra ou falta em relação ao valor contado.</div>';
+    $("cx_relatorio").innerHTML = report;
   }
 
   db.caixaAberto = false;
@@ -3965,6 +4165,9 @@ function calcQuickTroco(){
 
 /* ========== Carrinho (multi itens) ========== */
 let carrinho = [];
+// Controle da ordem do histórico de vendas. Quando verdadeiro (padrão),
+// as vendas mais recentes aparecem primeiro; quando falso, o mais antigo aparece primeiro.
+let vendasOrderDesc = true;
 let lastReceipt = null;
 
 function pulseCart(){
@@ -4257,6 +4460,8 @@ function finalizarCarrinho(){
   // Emite nota fiscal conforme preferências do usuário
   try{ maybeEmitNotaFiscal(lastReceipt); }catch(_e){}
   toast("Venda do carrinho concluída!", "ok");
+  // Toca som de venda concluída
+  try{ if(typeof saleSound === 'function') saleSound(); }catch(_e){}
 }
 
 /* ========== Nota Fiscal / Comprovante ========== */
@@ -4304,7 +4509,36 @@ function maybeEmitNotaFiscal(r){
 
 /* ========== Comprovante ========== */
 function buildReceiptHTML(r) {
-  const emp = db.empresa || { nome:"", cnpj:"", contato:"" };
+  // Inclui campos adicionais e logotipo na empresa; garante que logo seja definido.
+  const emp = db.empresa || { nome:"", cnpj:"", contato:"", endereco:"", celular:"", email:"", logo:"" };
+  // Monta o bloco HTML da empresa para o recibo, incluindo logotipo e detalhes.
+  const empBlock = (function(){
+    try{
+      let info = '<div class="box" style="display:flex; gap:10px; align-items:flex-start;">';
+      if(emp.logo){
+        info += '<img src="' + emp.logo + '" alt="Logo" style="max-height:60px; max-width:60px;">';
+      }
+      info += '<div>';
+      info += '<b>' + escapeHTML(emp.nome || 'Empresa') + '</b><br>';
+      info += 'CNPJ: ' + escapeHTML(emp.cnpj || '-') + '<br>';
+      info += 'Contato: ' + escapeHTML(emp.contato || '-') + '<br>';
+      // Sempre exibe o endereço com rótulo quando informado
+      if(emp.endereco) info += 'Endereço: ' + escapeHTML(emp.endereco) + '<br>';
+      if(emp.celular) info += 'Celular: ' + escapeHTML(emp.celular) + '<br>';
+      if(emp.email) info += 'Email: ' + escapeHTML(emp.email);
+      info += '</div></div>';
+      return info;
+    }catch(__err){
+      return '<div class="box"><b>' + escapeHTML(emp.nome || 'Empresa') + '</b></div>';
+    }
+  })();
+
+  // Ajuste de estilo para impressoras térmicas. Quando o usuário seleciona o
+  // dispositivo de impressora "thermal" nas preferências, definimos regras
+  // adicionais para a impressão: largura fixa de 80mm e margem zero. Caso
+  // contrário, extraCss permanece vazio e não interfere no layout.
+  const isThermal = (db && db._meta && db._meta.printerDevice === 'thermal');
+  const extraCss = isThermal ? '@media print { @page { size: 80mm auto; margin: 0; } body { width: 80mm; margin:0; } }' : '';
 
   const rows = (r.items || []).map((it, i) => `
     <tr>
@@ -4333,6 +4567,7 @@ function buildReceiptHTML(r) {
   hr{border:0;border-top:1px solid #222; margin:10px 0;}
   .noPrint{margin-top:14px; display:flex; gap:10px; flex-wrap:wrap;}
   @media print { .noPrint{display:none} }
+  ${extraCss}
 </style>
 </head>
 <body>
@@ -4343,12 +4578,11 @@ function buildReceiptHTML(r) {
       <div class="muted">Data/Hora: ${escapeHTML(r.date)}</div>
       ${r.groupId ? `<div class="muted">Grupo: ${escapeHTML(r.groupId)}</div>` : ""}
     </div>
-    <div class="box">
-      <b>${escapeHTML(emp.nome || "Empresa")}</b><br>
-      CNPJ: ${escapeHTML(emp.cnpj || "-")}<br>
-      Contato: ${escapeHTML(emp.contato || "-")}
-    </div>
+      ${empBlock}
   </div>
+
+      <!-- O bloco de orçamentos não deve ser incluído no comprovante. A versão de ferramentas
+           ficará fora deste template. -->
 
   <table>
     <thead>
@@ -4407,11 +4641,62 @@ function imprimirUltimoComprovante(){
   setTimeout(()=>URL.revokeObjectURL(url), 12000);
 }
 
+//
+// imprime uma tabela resumida com os itens do estoque.
+// A tabela inclui código, nome e valor de venda formatado. O documento
+// é aberto em uma nova janela e pode ser impresso ou salvo em PDF
+// pelo próprio navegador. Se o pop-up for bloqueado, o arquivo HTML
+// é baixado automaticamente. Em caso de erro, uma notificação
+// apropriada é exibida.
+function imprimirRelacao(){
+  try{
+    const items = Array.isArray(db.estoque) ? db.estoque : [];
+    let html = '<!DOCTYPE html><html><head><meta charset="utf-8">';
+    html += '<title>Relação de Estoque</title>';
+    html += '<style>body{font-family:Arial,sans-serif;padding:20px;}';
+    html += 'table{width:100%;border-collapse:collapse;margin-top:10px;}';
+    html += 'th,td{border:1px solid #000;padding:4px;text-align:left;}';
+    html += 'th{background:#f0f0f0;}</style>';
+    html += '</head><body>';
+    html += '<h2>Relação de Estoque</h2>';
+    html += '<table><thead><tr><th>Código</th><th>Nome</th><th>Valor</th></tr></thead><tbody>';
+    for(const it of items){
+      const cod  = it && it.cod ? String(it.cod) : '';
+      const nome = it && it.nome ? String(it.nome) : '';
+      const val  = typeof formatCurrencyBR === 'function' ? formatCurrencyBR(Number(it.preco_c)||0) : String(it.preco_c || 0);
+      html += `<tr><td>${cod}</td><td>${nome}</td><td>${val}</td></tr>`;
+    }
+    html += '</tbody></table>';
+    html += '<div class="noPrint" style="margin-top:10px;"><button onclick="window.print()">Imprimir</button><button onclick="window.close()">Fechar</button></div>';
+    html += '</body></html>';
+    const blob = new Blob([html], { type:'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const w   = window.open(url, '_blank');
+    if(!w){
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'relacao-estoque.html';
+      a.click();
+      setTimeout(()=>URL.revokeObjectURL(url), 12000);
+      if(typeof toast === 'function') toast('Pop-up bloqueado. Baixei a relação em HTML.', 'warn');
+      return;
+    }
+    setTimeout(()=>URL.revokeObjectURL(url), 12000);
+  }catch(e){
+    console.warn('imprimirRelacao error', e);
+    if(typeof toast === 'function') toast('Erro ao imprimir relação.', 'bad');
+  }
+}
+
 /* ========== Perfil ========== */
 function salvarPerfil(){
   db.empresa.nome = s($("p_nome")?.value);
   db.empresa.cnpj = s($("p_cnpj")?.value);
   db.empresa.contato = s($("p_contato")?.value);
+  // Novos campos de perfil: endereço, celular e e‑mail
+  db.empresa.endereco = s($("p_endereco")?.value);
+  db.empresa.celular = s($("p_celular")?.value);
+  db.empresa.email = s($("p_email")?.value);
   const fileInput = $("p_logo");
   // Se o usuário selecionou um novo logotipo, leia o arquivo como DataURL
   if(fileInput && fileInput.files && fileInput.files[0]){
@@ -4436,12 +4721,18 @@ function renderPerfilView(){
     pv.innerHTML = `
       <b>Empresa:</b> ${escapeHTML(db.empresa?.nome || "-")}<br>
       <b>CNPJ:</b> ${escapeHTML(db.empresa?.cnpj || "-")}<br>
-      <b>Contato:</b> ${escapeHTML(db.empresa?.contato || "-")}
+      <b>Contato:</b> ${escapeHTML(db.empresa?.contato || "-")}<br>
+      <b>Endereço:</b> ${escapeHTML(db.empresa?.endereco || "-")}<br>
+      <b>Celular:</b> ${escapeHTML(db.empresa?.celular || "-")}<br>
+      <b>E-mail:</b> ${escapeHTML(db.empresa?.email || "-")}
     `;
   }
   if($("p_nome")) $("p_nome").value = db.empresa?.nome || "";
   if($("p_cnpj")) $("p_cnpj").value = db.empresa?.cnpj || "";
   if($("p_contato")) $("p_contato").value = db.empresa?.contato || "";
+  if($("p_endereco")) $("p_endereco").value = db.empresa?.endereco || "";
+  if($("p_celular")) $("p_celular").value = db.empresa?.celular || "";
+  if($("p_email")) $("p_email").value = db.empresa?.email || "";
   // atualizar visualização do logotipo salvo
   const preview = $("p_logo_preview");
   if(preview){
@@ -4698,11 +4989,24 @@ function renderOrc(withFlash=false){
 /* ========== PDF Orçamento (mantido) ========== */
 function gerarOrcamentoPDF(){
   try{
-    if(orc.itens.length === 0){ toast("Adicione pelo menos 1 item ao orçamento.", "warn"); return; }
+    // Permite geração de orçamento apenas com mão de obra quando não há itens. Caso
+    // nenhum item seja adicionado e a mão de obra seja zero ou não esteja habilitada,
+    // exibe aviso e cancela a geração.
+    let _maoTmp = 0;
+    try{
+      _maoTmp = (db._meta && db._meta.maoObraEnabled) ? Math.max(0, parseMoneyToCents($("o_servico")?.value)) : 0;
+    }catch(_e){ _maoTmp = 0; }
+    if(orc.itens.length === 0 && _maoTmp <= 0){
+      toast("Adicione pelo menos 1 item ou mão de obra ao orçamento.", "warn");
+      return;
+    }
 
     const empNome = s(db.empresa?.nome) || "Empresa não configurada";
     const empCnpj = s(db.empresa?.cnpj) || "-";
     const empContato = s(db.empresa?.contato) || "-";
+    const empEndereco = s(db.empresa?.endereco) || "";
+    const empCelular = s(db.empresa?.celular) || "";
+    const empEmail = s(db.empresa?.email) || "";
     // Define uma marca de logotipo em base64 para uso no PDF (ou vazio se não houver)
     const empLogo = db.empresa && db.empresa.logo ? `<img src="${db.empresa.logo}" alt="Logo" style="max-height:60px; margin-right:10px;">` : "";
 
@@ -4721,20 +5025,103 @@ function gerarOrcamentoPDF(){
     const subtotal_c = orc.itens.reduce((sum,it)=> sum + mulCents(Number(it.preco_c)||0, Number(it.qtd)||0), 0);
     const total_c = addCents(subtotal_c, mao_c);
 
-    const numero = "ORC-" + Date.now();
+    // Define o número do orçamento. Se estivermos editando um orçamento existente,
+    // reutiliza o mesmo número; caso contrário, gera um novo com timestamp.
+    let numero = "ORC-" + Date.now();
+    if(editingOrcId){
+      try{
+        const lista = Array.isArray(db.orcamentos) ? db.orcamentos : [];
+        const found = lista.find(o => String(o.id) === String(editingOrcId));
+        if(found && found.numero) numero = String(found.numero);
+      }catch(_ignore){}
+    }
     const dataAgora = new Date();
     const dataStr = dataAgora.toLocaleString();
     const validadeStr = new Date(dataAgora.getTime() + validade*24*60*60*1000).toLocaleDateString();
 
-    const rowsPdf = orc.itens.map((it, idx)=>`
-      <tr>
-        <td style="padding:8px;border:1px solid #222;text-align:center;">${idx+1}</td>
-        <td style="padding:8px;border:1px solid #222;">${escapeHTML(it.nome)} (${escapeHTML(it.cod)})</td>
-        <td style="padding:8px;border:1px solid #222;text-align:center;">${it.qtd}</td>
-        <td style="padding:8px;border:1px solid #222;text-align:right;">R$ ${centsToBR(it.preco_c)}</td>
-        <td style="padding:8px;border:1px solid #222;text-align:right;">R$ ${centsToBR(mulCents(it.preco_c,it.qtd))}</td>
-      </tr>
-    `).join("");
+    // Armazena o orçamento no banco local para permitir aprovação posterior. Cada
+    // orçamento salva informações essenciais como número, data, cliente, lista de itens,
+    // valores e status inicial 'pendente'. Um identificador único (id) é gerado com
+    // makeId() para referência futura. Após adicionar, chama save() para persistir.
+    try{
+      // Monta objeto do orçamento para salvar/atualizar. Usa id existente se
+      // estivermos editando, caso contrário gera um novo id. Ao editar,
+      // preserva data de criação, status e timestamps relevantes do orçamento
+      const orcObj = {
+        id: editingOrcId ? editingOrcId : makeId(),
+        numero: numero,
+        data: dataStr,
+        createdAt: editingOrcId ? (function(){
+          const idx = Array.isArray(db.orcamentos) ? db.orcamentos.findIndex(o => String(o.id) === String(editingOrcId)) : -1;
+          return idx >= 0 ? db.orcamentos[idx].createdAt : (typeof dataAgora.toISOString === 'function' ? dataAgora.toISOString() : dataStr);
+        })() : (typeof dataAgora.toISOString === 'function' ? dataAgora.toISOString() : dataStr),
+        cliente: cliente,
+        contato: contatoCli,
+        obs: obs,
+        validade: validade,
+        itens: orc.itens.map(function(it){ return {
+          cod: it.cod,
+          nome: it.nome,
+          qtd: Number(it.qtd),
+          preco_c: Number(it.preco_c),
+          total_c: mulCents(Number(it.preco_c), Number(it.qtd))
+        }; }),
+        subtotal_c: subtotal_c,
+        mao_c: mao_c,
+        total_c: total_c,
+        status: 'pendente'
+      };
+      if(!Array.isArray(db.orcamentos)) db.orcamentos = [];
+      if(editingOrcId){
+        // Atualiza orçamento existente
+        const idx = db.orcamentos.findIndex(o => String(o.id) === String(editingOrcId));
+        if(idx >= 0){
+          // Mantém status e data de aprovação, se existirem
+          orcObj.status = db.orcamentos[idx].status || 'pendente';
+          if(db.orcamentos[idx].approvedAt) orcObj.approvedAt = db.orcamentos[idx].approvedAt;
+          db.orcamentos[idx] = orcObj;
+        } else {
+          db.orcamentos.push(orcObj);
+        }
+      } else {
+        db.orcamentos.push(orcObj);
+      }
+      save();
+      // Atualiza lista de orçamentos caso a seção esteja aberta
+      if(typeof renderOrcamentos === 'function'){
+        try{ renderOrcamentos(); }catch(__){ }
+      }
+      // Limpa estado de edição após salvar
+      editingOrcId = null;
+    }catch(__err){ console.warn('erro ao salvar orçamento', __err); }
+
+    // Monta as linhas da tabela de itens para o PDF. Além dos itens do
+    // orçamento, adiciona uma linha extra para a mão de obra quando existir.
+    const rowsPdfArr = [];
+    orc.itens.forEach(function(it, idx){
+      rowsPdfArr.push(
+        `<tr>
+          <td style="padding:8px;border:1px solid #222;text-align:center;">${idx+1}</td>
+          <td style="padding:8px;border:1px solid #222;">${escapeHTML(it.nome)} (${escapeHTML(it.cod)})</td>
+          <td style="padding:8px;border:1px solid #222;text-align:center;">${it.qtd}</td>
+          <td style="padding:8px;border:1px solid #222;text-align:right;">R$ ${centsToBR(it.preco_c)}</td>
+          <td style="padding:8px;border:1px solid #222;text-align:right;">R$ ${centsToBR(mulCents(it.preco_c,it.qtd))}</td>
+        </tr>`
+      );
+    });
+    if(mao_c > 0){
+      const idx = orc.itens.length + 1;
+      rowsPdfArr.push(
+        `<tr>
+          <td style="padding:8px;border:1px solid #222;text-align:center;">${idx}</td>
+          <td style="padding:8px;border:1px solid #222;">Mão de obra</td>
+          <td style="padding:8px;border:1px solid #222;text-align:center;">1</td>
+          <td style="padding:8px;border:1px solid #222;text-align:right;">R$ ${centsToBR(mao_c)}</td>
+          <td style="padding:8px;border:1px solid #222;text-align:right;">R$ ${centsToBR(mao_c)}</td>
+        </tr>`
+      );
+    }
+    const rowsPdf = rowsPdfArr.join("");
 
     const html = `<!doctype html>
 <html lang="pt-br"><head>
@@ -4757,23 +5144,23 @@ function gerarOrcamentoPDF(){
   @media print{ .noPrint{display:none} }
 </style></head>
 <body>
-  <div class="top">
-    <div>
-      <h1>Orçamento</h1>
-      <div class="muted"><b>${numero}</b></div>
-      <div class="muted">Data/Hora: ${escapeHTML(dataStr)}</div>
-      <div class="muted">Validade: ${validade} dia(s) • até ${escapeHTML(validadeStr)}</div>
-    </div>
-    <!-- Bloco da empresa: exibe logotipo (se houver) e dados do negócio lado a lado -->
-    <div class="box" style="display:flex; align-items:flex-start; gap:10px;">
-      ${empLogo}
+    <div class="top">
       <div>
-        <b>${escapeHTML(empNome)}</b><br>
-        CNPJ: ${escapeHTML(empCnpj)}<br>
-        Contato: ${escapeHTML(empContato)}
+        <h1>Orçamento</h1>
+        <div class="muted"><b>${numero}</b></div>
+        <div class="muted">Data/Hora: ${escapeHTML(dataStr)}</div>
+        <div class="muted">Validade: ${validade} dia(s) • até ${escapeHTML(validadeStr)}</div>
+      </div>
+      <!-- Bloco da empresa: exibe logotipo (se houver) e dados do negócio lado a lado -->
+      <div class="box" style="display:flex; align-items:flex-start; gap:10px;">
+        ${empLogo}
+        <div>
+          <b>${escapeHTML(empNome)}</b><br>
+          CNPJ: ${escapeHTML(empCnpj)}<br>
+          Contato: ${escapeHTML(empContato)}${empEndereco ? '<br>' + escapeHTML(empEndereco) : ''}${empCelular ? '<br>Celular: ' + escapeHTML(empCelular) : ''}${empEmail ? '<br>Email: ' + escapeHTML(empEmail) : ''}
+        </div>
       </div>
     </div>
-  </div>
 
   <div class="box" style="margin-top:14px;">
     <b>Cliente:</b> ${cliente ? escapeHTML(cliente) : "-"}<br>
@@ -5163,6 +5550,10 @@ function render(withFlash=false){
         case 'lucro':
           va = (a.preco_c - a.custo_c); vb = (b.preco_c - b.custo_c);
           break;
+        case 'added':
+          // ordena pela data de adição; se o valor estiver ausente, assume 0
+          va = a.added || 0; vb = b.added || 0;
+          break;
         default:
           va = 0; vb = 0;
       }
@@ -5293,7 +5684,14 @@ function render(withFlash=false){
   let fat_c = 0, luc_c = 0, vendasOkCount = 0;
 
   if(tVendas){
-    tVendas.innerHTML = (db.vendas || []).map(v=>{
+    const vendasList = (db.vendas || []).slice().sort(function(a,b){
+      try{
+        const da = new Date(a.data);
+        const dbb = new Date(b.data);
+        return vendasOrderDesc ? (dbb - da) : (da - dbb);
+      }catch(_e){ return 0; }
+    });
+    tVendas.innerHTML = vendasList.map(v=>{
       const cancelada = !!v.cancelada;
       const status = cancelada ? '<span class="bad">CANCELADA</span>' : '<span class="ok">OK</span>';
 
@@ -5556,7 +5954,9 @@ function toggleSubAjuste(id){
     // nova seção financeira (configurações de lucro e arredondamento)
     "financeiro": $("ajusteFinanceiro"),
     // nova seção de segurança (sessão, tentativas, auditoria)
-    "seguranca": $("ajusteSeguranca")
+    "seguranca": $("ajusteSeguranca"),
+    // nova seção de orçamentos salvos
+    "orcamentos": $("ajusteOrcamentos")
   };
   for(const k in sections){
     if(sections[k]){
@@ -5581,6 +5981,17 @@ function toggleSubAjuste(id){
           if(st) st.value = sessionTimeoutMin;
           const lat = $("input_login_attempts");
           if(lat) lat.value = loginAttemptLimit;
+        }
+        // Se a seção de orçamentos for exibida, renderize a lista
+        if(show && k === 'orcamentos' && typeof renderOrcamentos === 'function'){
+          renderOrcamentos();
+        }
+        // Se a seção de preferências for exibida, sincronize os selects de dispositivo
+        if(show && k === 'preferencias'){
+          const scanSel = $("cfg_scanDevice");
+          const printerSel = $("cfg_printerDevice");
+          if(scanSel && db._meta) scanSel.value = db._meta.scanDevice || 'camera';
+          if(printerSel && db._meta) printerSel.value = db._meta.printerDevice || 'default';
         }
       }else{
         // oculta outras seções
@@ -5650,28 +6061,11 @@ function updateLastOnline(){
 function enforceLicense(){
   try{
     const overlay = $('licenseBlockOverlay');
-    // Bloqueia se não estiver rodando via HTTP(S) e não estiver em modo dev (query ?dev=1)
-    if(typeof window !== 'undefined'){
-      const proto = window.location.protocol;
-      if(proto !== 'http:' && proto !== 'https:'){
-        const search = window.location.search || '';
-        const allowDev = /[?&]dev=1\b/.test(search);
-        if(!allowDev){
-          if(overlay) overlay.style.display = 'flex';
-          return;
-        }
-      }
+    // A verificação de licença foi desativada: sempre ocultamos o overlay de licença.
+    if(overlay){
+      overlay.style.display = 'none';
     }
-    // Lê o timestamp da última conexão bem-sucedida; se ausente ou expirado (>24h), bloqueia
-    // usa leitura segura do timestamp de última conexão. default 0 se não existir
-    const last = Number(safeLocalGet('erp_last_online', 0) || 0);
-    const now  = Date.now();
-    const expired = !last || (now - last > 24 * 60 * 60 * 1000);
-    if(expired){
-      if(overlay) overlay.style.display = 'flex';
-    }else{
-      if(overlay) overlay.style.display = 'none';
-    }
+    // O restante da lógica de verificação de licença é ignorado para que apenas a tela de conexão indisponível seja utilizada.
   }catch(e){
     console.warn('enforceLicense error', e);
   }
@@ -5779,6 +6173,17 @@ function applyPreferencesUI(){
         orcCard.style.display = 'none';
       }
     }
+    // Mostrar/ocultar botão e aba de orçamentos em Ajustes
+    const orcNavBtn = $('btnCfg_orcamentos');
+    if(orcNavBtn){
+      orcNavBtn.style.display = meta.orcamentoEnabled ? '' : 'none';
+    }
+    const ajusteOrc = $('ajusteOrcamentos');
+    if(ajusteOrc){
+      if(!meta.orcamentoEnabled){
+        ajusteOrc.style.display = 'none';
+      }
+    }
     // Mão de obra: inputs e estatísticas
     const vServico = $('v_servico');
     if(vServico){
@@ -5869,12 +6274,16 @@ function applyUIMode(){
   if(mode === 'auto'){
     mode = isPhone ? 'smartphone' : 'desktop';
   }
-  document.body.classList.toggle('smartphone', mode === 'smartphone');
+  // Ativa a classe smartphone tanto no modo smartphone quanto no novo modo mobile, pois ambos usam barra inferior e cartas responsivas.
+  const isPhoneMode = (mode === 'smartphone' || mode === 'mobile');
+  document.body.classList.toggle('smartphone', isPhoneMode);
+  // Nova classe mobile-mode adiciona ajustes específicos para telas pequenas em pé
+  document.body.classList.toggle('mobile-mode', mode === 'mobile');
   const bottom = document.getElementById('bottomNav');
   if(bottom){
-    bottom.style.display = (mode === 'smartphone') ? 'flex' : 'none';
+    bottom.style.display = isPhoneMode ? 'flex' : 'none';
   }
-  if(mode === 'smartphone'){
+  if(isPhoneMode){
     adaptTables();
   }
 }
@@ -5911,11 +6320,16 @@ window.addEventListener('resize', function(){ applyUIMode(); });
 /* ========== Navegação das Ferramentas Extras ==========
    Mostra apenas o cartão da ferramenta selecionada na área de extras. */
 function showTool(tool){
-  const tools = ['calc','pw','conv','notes','todo','rand','bmi','agenda','devedores','despesas','ai','diag'];
+  // Lista de ferramentas disponíveis. Adicionamos 'orcamentos' para permitir acesso aos orçamentos via Ferramentas.
+  const tools = ['calc','pw','conv','notes','todo','rand','bmi','agenda','devedores','despesas','ai','diag','orcamentos'];
   tools.forEach(t => {
     const el = document.getElementById('tool_'+t);
     if(el){ el.style.display = (t === tool) ? 'block' : 'none'; }
   });
+  // Renderizar a lista de orçamentos ao selecionar a ferramenta correspondente.
+  if(tool === 'orcamentos'){
+    try{ renderOrcamentos(); }catch(e){}
+  }
 }
 
 /* ========== Assistente IA ==========
@@ -6195,13 +6609,22 @@ let despesas = [];
 // Carrega despesas armazenadas no banco de dados (localStorage)
 function loadDespesas(){
   try{
-    despesas = (db.despesas && Array.isArray(db.despesas)) ? db.despesas.map(d=>({ nome: d.nome || '', valor_c: d.valor_c || 0 })) : [];
+    despesas = (db.despesas && Array.isArray(db.despesas)) ? db.despesas.map(d=>({
+      nome: d.nome || '',
+      valor_c: d.valor_c || 0,
+      tipo: (typeof d.tipo === 'string' && (d.tipo.toLowerCase() === 'variavel' || d.tipo.toLowerCase() === 'fixa')) ? d.tipo.toLowerCase() : 'fixa'
+    })) : [];
   }catch(e){ despesas = []; }
 }
 
 // Salva a lista de despesas de volta ao banco de dados e persiste
 function saveDespesas(){
-  db.despesas = despesas;
+  // Persiste a lista de despesas com nome, valor e tipo
+  db.despesas = despesas.map(d => ({
+    nome: d.nome || '',
+    valor_c: Number(d.valor_c) || 0,
+    tipo: d.tipo || 'fixa'
+  }));
   // reutiliza a função save() para persistir o banco
   if(typeof save === 'function') save();
 }
@@ -6214,16 +6637,22 @@ function renderDespesasTable(){
   if(!despesas || despesas.length === 0){
     html = '<p class="small">Nenhuma despesa registrada.</p>';
   }else{
-    html = '<table class="tight"><thead><tr><th>#</th><th class="rowleft">Descrição</th><th>Valor (R$)</th><th>Ação</th></tr></thead><tbody>';
+    html = '<table class="tight"><thead><tr><th>#</th><th class="rowleft">Descrição</th><th>Tipo</th><th>Valor (R$)</th><th>Ação</th></tr></thead><tbody>';
     despesas.forEach((d,i)=>{
       const valor = (d.valor_c || 0) / 100;
       const valorStr = valor.toFixed(2).replace('.', ',');
-      html += '<tr>'+
-        '<td>' + (i+1) + '</td>' +
-        '<td><input type="text" value="' + escapeHTML(d.nome || '') + '" onchange="updateDespesaNome(' + i + ', this.value)" /></td>' +
-        '<td><input type="text" value="' + valorStr + '" onchange="updateDespesaValor(' + i + ', this.value)" /></td>' +
-        '<td><button class="danger" onclick="removeDespesaRow(' + i + ')">Remover</button></td>' +
-      '</tr>';
+      // garante tipo válido
+      const tipo = (d.tipo === 'variavel' || d.tipo === 'fixa') ? d.tipo : 'fixa';
+      html += '<tr>';
+      html += '<td>' + (i+1) + '</td>';
+      html += '<td><input type="text" value="' + escapeHTML(d.nome || '') + '" onchange="updateDespesaNome(' + i + ', this.value)" /></td>';
+      html += '<td><select onchange="updateDespesaTipo(' + i + ', this.value)">' +
+                '<option value="fixa"' + (tipo === 'fixa' ? ' selected' : '') + '>Fixa</option>' +
+                '<option value="variavel"' + (tipo === 'variavel' ? ' selected' : '') + '>Variável</option>' +
+              '</select></td>';
+      html += '<td><input type="text" value="' + valorStr + '" onchange="updateDespesaValor(' + i + ', this.value)" style="max-width:80px;" /></td>';
+      html += '<td><button class="danger" onclick="removeDespesaRow(' + i + ')">Remover</button></td>';
+      html += '</tr>';
     });
     html += '</tbody></table>';
   }
@@ -6232,7 +6661,7 @@ function renderDespesasTable(){
 
 // Adiciona uma nova despesa vazia
 function addDespesaRow(){
-  despesas.push({ nome:'', valor_c:0 });
+  despesas.push({ nome:'', valor_c:0, tipo:'fixa' });
   renderDespesasTable();
   saveDespesas();
 }
@@ -6260,10 +6689,26 @@ function updateDespesaValor(i, value){
   // não renderiza novamente para manter foco
 }
 
+// Atualiza o tipo de uma despesa (fixa ou variavel)
+function updateDespesaTipo(i, value){
+  if(!despesas[i]) return;
+  const v = String(value || '').toLowerCase();
+  despesas[i].tipo = (v === 'variavel' || v === 'fixa') ? v : 'fixa';
+  saveDespesas();
+  // não renderiza novamente para manter foco
+}
+
 // Calcula a soma de despesas e compara com o faturamento total
 function calcularDespesas(){
-  // Soma despesas (centavos)
-  const totalDespesas_c = despesas.reduce((a,b) => a + (b.valor_c || 0), 0);
+  // Soma despesas (centavos) e por tipo
+  let totalDespesas_c = 0;
+  const porTipo = { fixa: 0, variavel: 0 };
+  despesas.forEach(d => {
+    const v = Number(d.valor_c) || 0;
+    totalDespesas_c += v;
+    const t = (String(d.tipo).toLowerCase() === 'variavel') ? 'variavel' : 'fixa';
+    porTipo[t] += v;
+  });
   // Soma o faturamento e o lucro bruto de todas as vendas. Para vendas que
   // possuem o campo lucro_c, usamos esse valor para determinar o lucro
   // gerado por cada item; caso contrário, o lucro bruto é calculado
@@ -6293,15 +6738,22 @@ function calcularDespesas(){
     const receitaStr = centsToBR(totalReceita_c);
     const lucroBrutoStr = centsToBR(totalLucroVendas_c);
     const lucroLiquidoStr = centsToBR(Math.abs(lucroLiquido_c));
+    // Totais por tipo
+    const fixaStr = centsToBR(porTipo.fixa);
+    const varStr = centsToBR(porTipo.variavel);
     let msg = '';
-    msg += 'Receita total: R$ ' + receitaStr + '<br>';
-    msg += 'Lucro bruto das vendas: R$ ' + lucroBrutoStr + '<br>';
-    msg += 'Despesas totais: R$ ' + despesasStr + '<br>';
+    msg += '<div><b>Resumo de Despesas e Receitas</b></div>';
+    msg += '<div>Receita total: R$ ' + receitaStr + '</div>';
+    msg += '<div>Lucro bruto das vendas: R$ ' + lucroBrutoStr + '</div>';
+    msg += '<div>Despesas totais: R$ ' + despesasStr + '</div>';
+    msg += '<div style="margin-left:12px;">- Despesas fixas: R$ ' + fixaStr + '</div>';
+    msg += '<div style="margin-left:12px;">- Despesas variáveis: R$ ' + varStr + '</div>';
     if(lucroLiquido_c >= 0){
-      msg += '<b>Lucro líquido</b>: R$ ' + lucroLiquidoStr;
+      msg += '<div><b>Lucro líquido:</b> R$ ' + lucroLiquidoStr + '</div>';
     } else {
-      msg += '<b>Prejuízo líquido</b>: R$ ' + lucroLiquidoStr;
+      msg += '<div><b>Prejuízo líquido:</b> R$ ' + lucroLiquidoStr + '</div>';
     }
+    msg += '<div class="small" style="margin-top:6px;">O lucro líquido considera o lucro bruto das vendas subtraído das despesas registradas acima.</div>';
     resEl.innerHTML = msg;
   }
   saveDespesas();
@@ -6314,6 +6766,207 @@ function limparDespesas(){
   const resEl = document.getElementById('despesasResultado');
   if(resEl) resEl.innerHTML = '';
   saveDespesas();
+}
+
+/* ========== Contabilidade / Balanço ==========
+ *
+ * Esta seção adiciona funcionalidades de contabilidade ao ERP. O
+ * usuário pode selecionar diferentes períodos (hoje, mês atual,
+ * últimos 3 ou 6 meses, ano atual ou um mês/ano específicos) e
+ * obter um balanço financeiro composto por entradas e saídas do
+ * caixa, vendas e uma estimativa de despesas fixas. O resultado
+ * inclui um resumo de lucros e prejuízos e pode ser impresso.
+ */
+function toggleContabilidade(){
+  try{
+    const card = document.getElementById('contabilidadeCard');
+    if(!card) return;
+    const show = card.style.display === 'none' || card.style.display === '';
+    card.style.display = show ? 'block' : 'none';
+  }catch(e){ console.warn('toggleContabilidade error', e); }
+}
+
+function contabPeriodo(tipo, value){
+  const now = new Date();
+  let start;
+  let end;
+  // Normaliza para 00:00 de hoje
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  switch(tipo){
+    case 'dia':
+      start = new Date(today);
+      end = new Date(today);
+      end.setDate(end.getDate() + 1);
+      break;
+    case 'mes':
+      start = new Date(now.getFullYear(), now.getMonth(), 1);
+      end = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+      break;
+    case '3meses':
+      end = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+      start = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+      break;
+    case '6meses':
+      end = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+      start = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+      break;
+    case 'ano':
+      start = new Date(now.getFullYear(), 0, 1);
+      end = new Date(now.getFullYear() + 1, 0, 1);
+      break;
+    case 'mesSel':
+      if(!value) return;
+      try{
+        const parts = String(value).split('-');
+        if(parts.length === 2){
+          const y = parseInt(parts[0]);
+          const m = parseInt(parts[1]);
+          if(!isNaN(y) && !isNaN(m)){
+            start = new Date(y, m - 1, 1);
+            end = new Date(y, m, 1);
+          }
+        }
+      }catch(_e){ return; }
+      break;
+    case 'anoSel':
+      try{
+        const y = parseInt(value);
+        if(!isNaN(y)){
+          start = new Date(y, 0, 1);
+          end = new Date(y + 1, 0, 1);
+        }
+      }catch(_){ return; }
+      break;
+    default:
+      return;
+  }
+  if(start && end){
+    computeContabilidade(start, end);
+  }
+}
+
+function computeContabilidade(start, end){
+  try{
+    const resEl = document.getElementById('contabResult');
+    if(!resEl) return;
+    const startTime = start.getTime();
+    const endTime = end.getTime();
+    let entradas_c = 0;
+    let saidas_c = 0;
+    const entradasPorCat = {};
+    const saidasPorCat = {};
+    // Percorre lançamentos do caixa no período
+    (db.caixa || []).forEach(rec => {
+      if(!rec || !rec.data) return;
+      let d;
+      try{ d = new Date(rec.data); }catch(_e){ return; }
+      if(!d || isNaN(d.getTime())) return;
+      const t = d.getTime();
+      if(t < startTime || t >= endTime) return;
+      const valor = Number(rec.valor_c) || 0;
+      // Categoria pode não existir; caímos para a descrição
+      const cat = rec.categoria || rec.desc || 'Outro';
+      if(valor >= 0){
+        entradas_c += valor;
+        entradasPorCat[cat] = (entradasPorCat[cat] || 0) + valor;
+      } else {
+        const vAbs = Math.abs(valor);
+        saidas_c += vAbs;
+        saidasPorCat[cat] = (saidasPorCat[cat] || 0) + vAbs;
+      }
+    });
+    // Percorre vendas para receita e lucro
+    let vendas_c = 0;
+    let lucro_c = 0;
+    (db.vendas || []).forEach(v => {
+      if(!v || v.cancelada) return;
+      let d;
+      // tenta múltiplos campos para data
+      if(v.dataIso){
+        try{ d = new Date(v.dataIso); }catch(_){ d = null; }
+      }
+      if(!d && v.data){
+        try{ d = new Date(v.data); }catch(_){ d = null; }
+      }
+      if(!d || isNaN(d.getTime())) return;
+      const t = d.getTime();
+      if(t < startTime || t >= endTime) return;
+      const total = Number(v.total_c) || 0;
+      vendas_c += total;
+      if(typeof v.lucro_c === 'number'){
+        lucro_c += Number(v.lucro_c) || 0;
+      } else {
+        lucro_c += total - (Number(v.servico_c) || 0);
+      }
+    });
+    // Estimativa de despesas fixas para o período: multiplicamos cada despesa pelo número de meses no intervalo
+    let totalDespesasFixasPeriod_c = 0;
+    try{
+      // calcula diferença em meses: end no primeiro dia do próximo mês menos start no primeiro dia do mês
+      const monthsDiff = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth());
+      const meses = Math.max(1, monthsDiff);
+      (db.despesas || []).forEach(d => {
+        const v = Number(d.valor_c) || 0;
+        totalDespesasFixasPeriod_c += v * meses;
+      });
+    }catch(_e){}
+    const lucroLiquido_c = lucro_c - saidas_c - totalDespesasFixasPeriod_c;
+    // Função para formatar centavos
+    const fmt = x => centsToBR(x);
+    // Monta HTML do relatório
+    let html = '';
+    html += '<div><b>Período:</b> ' + start.toLocaleDateString() + ' a ' + new Date(end.getTime() - 1).toLocaleDateString() + '</div>';
+    html += '<div><b>Entradas (Caixa):</b> R$ ' + fmt(entradas_c) + '</div>';
+    html += '<div><b>Saídas (Caixa):</b> R$ ' + fmt(saidas_c) + '</div>';
+    html += '<div><b>Saldo do Caixa:</b> R$ ' + fmt(entradas_c - saidas_c) + '</div>';
+    html += '<div><b>Receita de Vendas:</b> R$ ' + fmt(vendas_c) + '</div>';
+    html += '<div><b>Lucro Bruto das Vendas:</b> R$ ' + fmt(lucro_c) + '</div>';
+    html += '<div><b>Despesas Fixas (aprox.):</b> R$ ' + fmt(totalDespesasFixasPeriod_c) + '</div>';
+    if(lucroLiquido_c >= 0){
+      html += '<div><b>Lucro Líquido:</b> R$ ' + fmt(lucroLiquido_c) + '</div>';
+    } else {
+      html += '<div><b>Prejuízo Líquido:</b> R$ ' + fmt(Math.abs(lucroLiquido_c)) + '</div>';
+    }
+    // Entradas por categoria
+    const entries = Object.entries(entradasPorCat).sort((a,b)=> b[1] - a[1]);
+    if(entries.length > 0){
+      html += '<hr><div><b>Entradas por Categoria:</b></div>';
+      entries.forEach(([cat,val]) => {
+        html += '<div style="margin-left:12px;">' + escapeHTML(cat) + ': R$ ' + fmt(val) + '</div>';
+      });
+    }
+    const exits = Object.entries(saidasPorCat).sort((a,b)=> b[1] - a[1]);
+    if(exits.length > 0){
+      html += '<hr><div><b>Saídas por Categoria:</b></div>';
+      exits.forEach(([cat,val]) => {
+        html += '<div style="margin-left:12px;">' + escapeHTML(cat) + ': R$ ' + fmt(val) + '</div>';
+      });
+    }
+    resEl.innerHTML = html;
+  }catch(e){ console.warn('computeContabilidade error', e); }
+}
+
+function printContabilidade(){
+  try{
+    const resEl = document.getElementById('contabResult');
+    if(!resEl) return;
+    const html = '<div style="font-family:Arial, sans-serif; font-size:14px;">' + resEl.innerHTML + '</div>';
+    const wrapper = '<!doctype html><html lang="pt-br"><head><meta charset="utf-8"><title>Relatório de Contabilidade</title></head><body>' + html + '</body></html>';
+    const blob = new Blob([wrapper], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const w = window.open(url, '_blank');
+    if(!w){
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'contabilidade.html';
+      a.click();
+    } else {
+      w.addEventListener('load', () => {
+        try{ w.print(); }catch(_e){}
+      });
+    }
+    setTimeout(() => URL.revokeObjectURL(url), 12000);
+  }catch(e){ console.warn('printContabilidade error', e); }
 }
 
 /* ========== Perfil de Comércio ========== */
@@ -7491,6 +8144,8 @@ function finalizarScanVenda(){
   save(); render(true);
   limparScanCarrinho();
   toast("Venda concluída!", "ok");
+  // Toca som de venda concluída
+  try{ if(typeof saleSound === 'function') saleSound(); }catch(_e){}
   // Fecha o modal de scanner ao finalizar a venda
   if(typeof closeScanOverlay === 'function') closeScanOverlay();
 }
@@ -7761,10 +8416,22 @@ setInterval(checkDevedorAlerts, 600000);
 
   <!-- Overlay de bloqueio de licença. Exibido quando o aplicativo não consegue
        verificar a licença por mais de 24 horas de uso offline. -->
-  <div id="licenseBlockOverlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.92); color:#fff; z-index:99999; justify-content:center; align-items:center; flex-direction:column; text-align:center; padding:20px;">
-    <h2 style="margin-bottom:10px;">⚠️ Verificação de licença necessária</h2>
-    <p style="max-width:480px; margin-bottom:16px;">Não foi possível verificar sua licença nas últimas 24 horas ou o aplicativo está sendo executado fora de um site. Conecte-se à internet e hospede o ERP em um domínio válido (por exemplo, Netlify). Uma conexão periódica garante que o seu acesso permaneça ativo.</p>
-    <button onclick="retryLicenseCheck()" style="padding:10px 18px; border-radius:8px; font-size:16px;">🔄 Verificar Agora</button>
+  <div id="licenseBlockOverlay" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:#ffffff; color:#202124; z-index:99999; font-family:Arial, sans-serif; display:flex; justify-content:center; align-items:center;">
+    <div style="max-width:960px; width:100%; padding:20px; display:flex; flex-wrap:wrap; justify-content:space-between; align-items:flex-start;">
+      <div style="max-width:600px;">
+        <h1 style="font-size:32px; margin-bottom:16px; font-weight:bold;">Verificação de licença necessária</h1>
+        <p style="font-size:18px; margin-bottom:20px;">Não foi possível verificar sua licença nas últimas 24 horas ou não tivemos acesso ao servidor do ERP.</p>
+        <p style="font-size:16px; margin-bottom:8px;"><strong>Para resolver, você pode:</strong></p>
+        <ul style="font-size:16px; list-style-type:disc; margin:0 0 0 20px; padding:0;">
+          <li style="margin-bottom:6px;">Conectar-se à internet e garantir que o servidor está acessível.</li>
+          <li style="margin-bottom:6px;">Verificar se o endereço do servidor está correto.</li>
+          <li style="margin-bottom:6px;">Tentar novamente mais tarde.</li>
+        </ul>
+      </div>
+      <div style="display:flex; flex-direction:column; align-items:flex-end; gap:12px;">
+        <button onclick="retryLicenseCheck()" style="padding:10px 16px; border-radius:4px; font-size:14px; border:none; background:#1a73e8; color:#ffffff; cursor:pointer;">Verificar agora</button>
+      </div>
+    </div>
   </div>
 
     <!-- ========== Dependências do módulo Skan ========== -->
@@ -7799,6 +8466,47 @@ setInterval(checkDevedorAlerts, 600000);
           // ignore se não suportado
         }
       }
+
+      // Som de venda concluída (plim/dinheiro). Executa dois beeps rápidos para
+      // simular o som de moedas. Exporta a função para uso global.
+      /**
+       * Som de venda concluída.
+       *
+       * Em vez de reutilizar o beep quadrado padrão, esta função cria dois
+       * osciladores em forma de triângulo com frequências diferentes e
+       * envelopes curtos. O objetivo é simular o som de moedas caindo
+       * (“plim”/“dim”) sem depender de arquivos externos. Caso o
+       * Web Audio API não esteja disponível, a função falha silenciosamente.
+       */
+      function saleSound(){
+        try{
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          const ctx = new AudioContext();
+          const now = ctx.currentTime;
+          // Primeiro “plim”: frequência mais alta com decaimento rápido
+          const osc1 = ctx.createOscillator();
+          osc1.type = 'triangle';
+          osc1.frequency.setValueAtTime(1200, now);
+          const gain1 = ctx.createGain();
+          gain1.gain.setValueAtTime(0.25, now);
+          gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+          osc1.connect(gain1).connect(ctx.destination);
+          osc1.start(now);
+          osc1.stop(now + 0.15);
+          // Segundo “dim”: frequência um pouco mais baixa, iniciado com atraso
+          const osc2 = ctx.createOscillator();
+          osc2.type = 'triangle';
+          osc2.frequency.setValueAtTime(800, now + 0.18);
+          const gain2 = ctx.createGain();
+          gain2.gain.setValueAtTime(0.25, now + 0.18);
+          gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.18 + 0.15);
+          osc2.connect(gain2).connect(ctx.destination);
+          osc2.start(now + 0.18);
+          osc2.stop(now + 0.18 + 0.15);
+        }catch(_e){ /* ignora se API de áudio não suportada */ }
+      }
+      // Expõe saleSound globalmente para que outras funções possam chamá‑la.
+      window.saleSound = saleSound;
       // Carrega ZXing dinamicamente, apenas quando necessário
       let zxingLoaded = false;
       function loadZXing() {
@@ -7960,24 +8668,38 @@ setInterval(checkDevedorAlerts, 600000);
         beep();
         if (statusEl) statusEl.textContent = 'Código lido: ' + code;
         if (skanContext === 'vendas') {
-          const busca = document.getElementById('v_busca');
-          const qtdEl = document.getElementById('v_qtd');
-          if (busca) {
-            busca.value = code;
-            if (typeof filtrarProdutosVenda === 'function') filtrarProdutosVenda();
+          // Determina o modo de venda: 'rapida' ou 'completa'. Se indefinido, assume completa.
+          let mode = 'completa';
+          try{
+            if(typeof salesMode !== 'undefined') mode = salesMode;
+          }catch(_e){ mode = 'completa'; }
+          if (mode === 'rapida') {
+            // Venda rápida: preenche campo de busca, seleciona produto e define quantidade 1
+            const busca = document.getElementById('v_busca');
             const sel = document.getElementById('v_prod');
+            const qtdEl = document.getElementById('v_qtd');
+            if (busca) busca.value = code;
+            if (typeof filtrarProdutosVenda === 'function') filtrarProdutosVenda();
             if (sel) {
-              for (const opt of sel.options) {
-                if (opt.value === code) {
-                  sel.value = code;
-                  break;
-                }
-              }
+              // seleciona o item se existir no dropdown
+              sel.value = code;
             }
+            if (qtdEl) qtdEl.value = 1;
+            if (typeof calcQuickTroco === 'function') calcQuickTroco();
+          } else {
+            // Venda completa (carrinho): preenche campo de busca e seleciona no carrinho
+            const busca = document.getElementById('c_busca');
+            const sel = document.getElementById('c_prod');
+            const qtdEl = document.getElementById('c_qtd');
+            if (busca) busca.value = code;
+            if (typeof filtrarProdutosCarrinho === 'function') filtrarProdutosCarrinho();
+            if (sel) {
+              sel.value = code;
+            }
+            if (qtdEl) qtdEl.value = 1;
           }
-          if (qtdEl) qtdEl.value = 1;
-          if (typeof calcQuickTroco === 'function') calcQuickTroco();
         } else if (skanContext === 'estoque') {
+          // Scanner do estoque: preenche o código do formulário de cadastro
           const codInput = document.getElementById('e_cod');
           if (codInput) codInput.value = code;
         }
@@ -8037,11 +8759,11 @@ setInterval(checkDevedorAlerts, 600000);
           }
         }
         if (eBtn) {
-          // Se o botão de estoque estiver usando o novo scanner (onScannerEstoqueClick),
-          // não altere seu texto ou estilo aqui. Isso evita sobrescrever a label personalizada.
+          // Se o botão de estoque estiver usando o novo scanner (toggleSkan) ou o antigo (onScannerEstoqueClick),
+          // não altere seu texto ou estilo aqui. Isso evita sobrescrever a label personalizada (📷 Scanner).
           const handler = eBtn.getAttribute('onclick') || '';
-          if (handler.includes('onScannerEstoqueClick')) {
-            // não modificar
+          if (handler.includes('onScannerEstoqueClick') || handler.includes('toggleSkan')) {
+            // não modificar a label ou estilo padrão
           } else {
             if (skanActive && skanContext === 'estoque') {
               eBtn.textContent = '🔍 Scanner Ativado';
@@ -8073,6 +8795,470 @@ setInterval(checkDevedorAlerts, 600000);
       window.toggleSkan = toggleSkan;
       window.stopSkan   = stopSkan;
     })();
+    
+    /* ========== Merge Backup File ==========
+       Esta seção adiciona suporte à mesclagem de arquivos de backup locais. Permite carregar um
+       backup e complementar o banco de dados existente sem sobrescrever dados atuais. O botão
+       "Mesclar Arquivo" abre um seletor de arquivos oculto (#mergeFile), e ao selecionar um JSON
+       válido o conteúdo é mesclado conforme regras específicas de entidade. A função mergeDBs
+       realiza o merge de vendas, caixa, estoque, orçamentos e _meta de forma idempotente. */
+
+    // Abre o seletor de arquivo de mesclagem. Verifica permissões e dispara clique no input oculto.
+    window.openImportBackupMerge = function(){
+      try{
+        if(currentUser && typeof hasPerm === 'function' && !hasPerm('exportImportBackup')){
+          toast('Sem permissão para importar backups.', 'bad');
+          return;
+        }
+        const inp = document.getElementById('mergeFile');
+        if(!inp){ toast('Input de arquivo não encontrado (#mergeFile).', 'bad'); return; }
+        inp.value = '';
+        inp.click();
+      }catch(e){ console.warn('openImportBackupMerge error', e); }
+    };
+
+    // Função utilitária que mescla dois bancos de dados conforme regras de entidade.
+    window.mergeDBs = function(current, incoming){
+      try{
+        if(!current || typeof current !== 'object') current = {};
+        if(!incoming || typeof incoming !== 'object') incoming = {};
+        const out = JSON.parse(JSON.stringify(current));
+        function parseDate(d){
+          try{ return new Date(d).getTime() || 0; }catch(_){ return 0; }
+        }
+        // Mescla metadados preservando chaves existentes e atualizando savedAt se mais recente
+        out._meta = out._meta && typeof out._meta === 'object' ? JSON.parse(JSON.stringify(out._meta)) : {};
+        if(incoming._meta && typeof incoming._meta === 'object'){
+          for(const k in incoming._meta){
+            if(k === 'savedAt'){
+              const curT = parseDate(out._meta.savedAt);
+              const incT = parseDate(incoming._meta.savedAt);
+              if(incT > curT) out._meta.savedAt = incoming._meta.savedAt;
+            }else{
+              if(out._meta[k] === undefined){ out._meta[k] = incoming._meta[k]; }
+            }
+          }
+        }
+        // Mesclar vendas por id ou chave composta. Atualiza se a venda importada for mais recente.
+        const vendasMap = new Map();
+        const curV = Array.isArray(current.vendas) ? current.vendas : [];
+        const incV = Array.isArray(incoming.vendas) ? incoming.vendas : [];
+        function keyVenda(v){
+          if(v && v.id !== undefined && v.id !== null) return String(v.id);
+          return String((v.groupId||'') + '|' + (v.data||'') + '|' + (v.cod||'') + '|' + ((v.total_c ?? v.total) || 0));
+        }
+        curV.forEach(v=>{ vendasMap.set(keyVenda(v), v); });
+        incV.forEach(v=>{
+          const k = keyVenda(v);
+          if(!vendasMap.has(k)) vendasMap.set(k, v);
+          else {
+            const cur = vendasMap.get(k);
+            const curDate = parseDate(cur.updatedAt || cur.data);
+            const incDate = parseDate(v.updatedAt || v.data);
+            if(incDate > curDate){ vendasMap.set(k, Object.assign({}, cur, v)); }
+          }
+        });
+        out.vendas = Array.from(vendasMap.values());
+        out.vendas.sort((a,b)=>parseDate(a.data) - parseDate(b.data));
+        // Mesclar caixa por id ou por chave composta. Atualiza se importado for mais recente.
+        const caixaMap = new Map();
+        const curC = Array.isArray(current.caixa) ? current.caixa : [];
+        const incC = Array.isArray(incoming.caixa) ? incoming.caixa : [];
+        function keyCaixa(c){
+          if(c && c.id !== undefined && c.id !== null) return String(c.id);
+          return String((c.data||'') + '|' + (c.desc||'') + '|' + ((c.valor_c ?? c.valor) || 0) + '|' + (c.tipo||'') + '|' + (c.groupId||''));
+        }
+        curC.forEach(c=>{ caixaMap.set(keyCaixa(c), c); });
+        incC.forEach(c=>{
+          const k = keyCaixa(c);
+          if(!caixaMap.has(k)) caixaMap.set(k, c);
+          else {
+            const cur = caixaMap.get(k);
+            const curDate = parseDate(cur.updatedAt || cur.data);
+            const incDate = parseDate(c.updatedAt || c.data);
+            if(incDate > curDate){ caixaMap.set(k, Object.assign({}, cur, c)); }
+          }
+        });
+        out.caixa = Array.from(caixaMap.values());
+        out.caixa.sort((a,b)=>parseDate(a.data) - parseDate(b.data));
+        // Mesclar estoque por código. Atualiza quantidade e alguns campos.
+        const estoqueMap = new Map();
+        const curE = Array.isArray(current.estoque) ? current.estoque : [];
+        const incE = Array.isArray(incoming.estoque) ? incoming.estoque : [];
+        curE.forEach(p=>{
+          const cod = String((p.cod ?? '').trim());
+          if(!cod) return;
+          estoqueMap.set(cod, Object.assign({}, p));
+        });
+        incE.forEach(p=>{
+          const cod = String((p.cod ?? '').trim());
+          if(!cod) return;
+          if(!estoqueMap.has(cod)){
+            estoqueMap.set(cod, Object.assign({}, p));
+          }else{
+            const cur = estoqueMap.get(cod);
+            const merged = Object.assign({}, cur);
+            const curQtd = Number(cur.qtd) || 0;
+            const incQtd = Number(p.qtd) || 0;
+            if(incQtd > curQtd){ merged.qtd = curQtd + (incQtd - curQtd); }
+            else if(incQtd > 0 && curQtd === 0){ merged.qtd = incQtd; }
+            else { merged.qtd = curQtd; }
+            const curDate = parseDate(cur.updatedAt || cur.data || cur.savedAt);
+            const incDate = parseDate(p.updatedAt || p.data || (incoming._meta && incoming._meta.savedAt));
+            if(incDate > curDate){
+              if(p.preco_c !== undefined && p.preco_c !== null && !Number.isNaN(Number(p.preco_c))) merged.preco_c = p.preco_c;
+              if(p.custo_c !== undefined && p.custo_c !== null && !Number.isNaN(Number(p.custo_c))) merged.custo_c = p.custo_c;
+              if(p.nome) merged.nome = p.nome;
+            }
+            estoqueMap.set(cod, merged);
+          }
+        });
+        out.estoque = Array.from(estoqueMap.values());
+        // Mesclar orçamentos por id. Atualiza se importado for mais recente.
+        const orcMap = new Map();
+        const curO = Array.isArray(current.orcamentos) ? current.orcamentos : [];
+        const incO = Array.isArray(incoming.orcamentos) ? incoming.orcamentos : [];
+        curO.forEach(o=>{
+          const id = (o && o.id != null) ? String(o.id) : null;
+          if(id) orcMap.set(id, o);
+        });
+        incO.forEach(o=>{
+          const id = (o && o.id != null) ? String(o.id) : null;
+          if(!id) return;
+          if(!orcMap.has(id)) orcMap.set(id, o);
+          else {
+            const cur = orcMap.get(id);
+            const curDate = parseDate(cur.updatedAt || cur.data);
+            const incDate = parseDate(o.updatedAt || o.data);
+            if(incDate > curDate){ orcMap.set(id, Object.assign({}, cur, o)); }
+          }
+        });
+        out.orcamentos = Array.from(orcMap.values());
+        return out;
+      }catch(err){ console.error('mergeDBs error', err); return current; }
+    };
+
+    // Escuta mudanças no input #mergeFile para efetuar o merge ao selecionar um arquivo
+    (function(){
+      try{
+        const inp = document.getElementById('mergeFile');
+        if(!inp) return;
+        inp.addEventListener('change', async function(){
+          const file = this.files && this.files[0];
+          if(!file) return;
+          try{
+            const text = await file.text();
+            let obj;
+            try{ obj = JSON.parse(text); }catch(_){ obj = null; }
+            if(!obj){ toast('Arquivo inválido.', 'bad'); this.value=''; return; }
+            let incoming = obj;
+            if(obj && obj.db) incoming = obj.db;
+            if(!incoming || typeof incoming !== 'object'){ toast('Backup inválido.', 'bad'); this.value=''; return; }
+            const merged = window.mergeDBs(db || {}, incoming);
+            db = normalizeDB(merged);
+            save();
+            if(typeof render === 'function') render(true);
+            toast('Backup mesclado com sucesso!', 'ok');
+          }catch(err){ console.error(err); toast('Falha ao mesclar o backup.', 'bad'); }
+          finally { this.value = ''; }
+        });
+      }catch(e){ console.warn('mergeFile handler error', e); }
+    })();
+
+    /* ========== Proteção contra abas duplicadas ==========
+       Esta rotina impede o uso simultâneo do ERP em mais de uma aba. Quando
+       detecta outra aba ativa, exibe um overlay bloqueador com a mensagem
+       "O sistema está aberto duas vezes". O controle usa localStorage para
+       coordenar tabs e eventos de storage para transições dinâmicas. */
+    (function(){
+      try{
+        const TAB_KEY = 'ERP_SINGLE_TAB_ID';
+        const tabId = String(Date.now() + '_' + Math.random());
+        let isMaster = false;
+        function claimMaster(){
+          try{
+            const current = localStorage.getItem(TAB_KEY);
+            if(!current){ localStorage.setItem(TAB_KEY, tabId); return true; }
+            return current === tabId;
+          }catch(_){ return true; }
+        }
+        function showDup(){
+          let ov = document.getElementById('duplicateTabOverlay');
+          if(!ov){
+            ov = document.createElement('div');
+            ov.id = 'duplicateTabOverlay';
+            ov.style.position = 'fixed';
+            ov.style.zIndex = '100000';
+            ov.style.top = '0';
+            ov.style.left = '0';
+            ov.style.right = '0';
+            ov.style.bottom = '0';
+            ov.style.backgroundColor = '#fff';
+            ov.style.color = '#000';
+            ov.style.display = 'flex';
+            ov.style.justifyContent = 'center';
+            ov.style.alignItems = 'center';
+            ov.style.flexDirection = 'column';
+            ov.style.textAlign = 'center';
+            ov.style.padding = '20px';
+            ov.style.fontSize = '28px';
+            ov.textContent = 'O sistema está aberto duas vezes';
+            document.body.appendChild(ov);
+          }
+          ov.style.display = 'flex';
+        }
+        function hideDup(){
+          const ov = document.getElementById('duplicateTabOverlay');
+          if(ov) ov.style.display = 'none';
+        }
+        isMaster = claimMaster();
+        if(!isMaster){ showDup(); }
+        window.addEventListener('storage', function(e){
+          if(e.key !== TAB_KEY) return;
+          const val = e.newValue;
+          if(val === null){
+            if(!isMaster){
+              isMaster = claimMaster();
+              if(isMaster) hideDup();
+            }
+          }else{
+            if(val !== tabId){
+              if(isMaster){ isMaster = false; showDup(); }
+              else { showDup(); }
+            }
+          }
+        });
+        window.addEventListener('beforeunload', function(){
+          try{
+            if(isMaster && localStorage.getItem(TAB_KEY) === tabId){ localStorage.removeItem(TAB_KEY); }
+          }catch(_){}
+        });
+      }catch(e){ console.warn('Duplicate tab protection error', e); }
+    })();
+
+    /* ========== Tela offline ==========
+       Exibe um overlay semelhante à página padrão de "Página não encontrada" do navegador
+       quando o dispositivo estiver sem acesso à internet. Permite digitar
+       "offlinetesteoffline" para desbloquear o uso offline, persistindo até que a aba
+       seja fechada. Quando a conexão for restabelecida, remove automaticamente o overlay
+       e limpa a permissão temporária. */
+    (function(){
+      try{
+        const overrideKey = 'ERP_OFFLINE_OVERRIDE';
+        function createOfflineOverlay(){
+          // Cria ou reutiliza o overlay que cobre toda a tela. Este painel é
+          // exibido somente quando o navegador está offline e nenhuma permissão
+          // temporária foi concedida. A estrutura e o texto seguem uma
+          // inspiração da página de erro do Google Chrome para tornar a mensagem
+          // mais convincente. A lógica de ativar o modo offline permanece
+          // inalterada; pressionar o botão "Ativar modo offline" chamará a mesma
+          // rotina usada anteriormente (atualizando a marcação de última conexão
+          // e gravando a permissão no sessionStorage). O overlay não intercepta
+          // atalhos globais como Ctrl+L, permitindo que o console oculto seja
+          // acessado normalmente.
+          let ov = document.getElementById('offlineOverlay');
+          if(!ov){
+            ov = document.createElement('div');
+            ov.id = 'offlineOverlay';
+            // Ocupa toda a janela e centra o conteúdo
+            ov.style.position = 'fixed';
+            ov.style.top = '0';
+            ov.style.left = '0';
+            ov.style.right = '0';
+            ov.style.bottom = '0';
+            // Definir cores com base nas variáveis de tema do ERP para suportar modos claro/escuro.
+            // Obtemos as propriedades CSS definidas no :root (ex.: --panel2, --bg, --text, --primary, etc.).
+            const rootStyle = getComputedStyle(document.documentElement);
+            const bgColor   = (rootStyle.getPropertyValue('--panel2') || rootStyle.getPropertyValue('--bg') || '#ffffff').trim();
+            const textColor = (rootStyle.getPropertyValue('--text') || '#5f6368').trim();
+            const primaryColor = (rootStyle.getPropertyValue('--primary2') || rootStyle.getPropertyValue('--primary') || '#1a73e8').trim();
+            ov.style.backgroundColor = bgColor || '#ffffff';
+            // herda a cor de texto da aplicação
+            ov.style.color = textColor || '#5f6368';
+            ov.style.zIndex = '99998';
+            ov.style.display = 'none';
+            ov.style.flexDirection = 'column';
+            ov.style.justifyContent = 'center';
+            ov.style.alignItems = 'center';
+            ov.style.textAlign = 'center';
+            ov.style.fontFamily = 'Arial, sans-serif';
+
+            // Monta estrutura inspirada em uma página de erro do navegador, com texto e lista à esquerda e botões à direita.
+            const container = document.createElement('div');
+            container.style.maxWidth = '960px';
+            container.style.width = '100%';
+            container.style.padding = '20px';
+            container.style.display = 'flex';
+            container.style.flexWrap = 'wrap';
+            container.style.justifyContent = 'space-between';
+            container.style.alignItems = 'flex-start';
+
+            // Seção de texto (esquerda)
+            const textSec = document.createElement('div');
+            textSec.style.maxWidth = '600px';
+
+            const title = document.createElement('h1');
+            // Título ajustado conforme especificação de tela offline personalizada
+            title.textContent = 'Este site não foi encontrado.';
+            title.style.fontSize = '32px';
+            title.style.marginBottom = '16px';
+            title.style.fontWeight = 'bold';
+
+            const desc = document.createElement('p');
+            // Subtítulo atualizado para refletir falha de conexão genérica
+            desc.textContent = 'Não foi possível conectar com o servidor.';
+            desc.style.fontSize = '18px';
+            desc.style.marginBottom = '20px';
+
+            const intro = document.createElement('p');
+            // Linha adicional para explicar que o servidor pode estar indisponível ou bloqueado
+            intro.textContent = 'O servidor pode ter bloqueado ou estar indisponível.';
+            intro.style.fontSize = '16px';
+            intro.style.marginBottom = '8px';
+
+            const list = document.createElement('ul');
+            list.style.fontSize = '16px';
+            list.style.listStyleType = 'disc';
+            list.style.margin = '0 0 0 20px';
+            list.style.padding = '0';
+            const items = [
+              // Sugestões conforme especificação: orientar usuário a tentar mais tarde, checar rede e bloqueios de firewall/DNS.
+              'Tentar novamente mais tarde',
+              'Verificar a conexão de rede',
+              'Verificar se a rede possui bloqueio (firewall/DNS)'
+            ];
+            items.forEach((txt) => {
+              const li = document.createElement('li');
+              li.textContent = txt;
+              li.style.marginBottom = '6px';
+              list.appendChild(li);
+            });
+
+            textSec.appendChild(title);
+            textSec.appendChild(desc);
+            textSec.appendChild(intro);
+            textSec.appendChild(list);
+
+            // Seção de botões (direita)
+            const btnSec = document.createElement('div');
+            btnSec.style.display = 'flex';
+            btnSec.style.flexDirection = 'column';
+            btnSec.style.alignItems = 'flex-end';
+            btnSec.style.gap = '12px';
+
+            const retryBtn = document.createElement('button');
+            retryBtn.textContent = 'Tentar novamente';
+            retryBtn.style.padding = '10px 16px';
+            retryBtn.style.fontSize = '14px';
+            retryBtn.style.border = 'none';
+            retryBtn.style.borderRadius = '4px';
+            // Botão "Tentar novamente" usa a cor primária do tema
+            retryBtn.style.backgroundColor = primaryColor || '#1a73e8';
+            retryBtn.style.color = '#ffffff';
+            retryBtn.style.cursor = 'pointer';
+            retryBtn.onclick = function(){
+              try{ location.reload(); }catch(_e){ location.href = location.href; }
+            };
+
+            const offlineBtn = document.createElement('button');
+            offlineBtn.textContent = 'Ativar modo offline';
+            offlineBtn.style.padding = '10px 16px';
+            offlineBtn.style.fontSize = '14px';
+            // Botão "Ativar modo offline" usa cor primária para borda e cor de fundo igual ao painel
+            offlineBtn.style.border = `1px solid ${primaryColor}`;
+            offlineBtn.style.borderRadius = '4px';
+            offlineBtn.style.backgroundColor = bgColor;
+            offlineBtn.style.color = primaryColor;
+            offlineBtn.style.cursor = 'pointer';
+            offlineBtn.onclick = function(){
+              try{
+                sessionStorage.setItem(overrideKey, '1');
+                if(typeof window.updateLastOnline === 'function'){
+                  window.updateLastOnline();
+                }else{
+                  try{ localStorage.setItem('erp_last_online', String(Date.now())); }catch(_){}
+                }
+              }catch(_){}
+              ov.style.display = 'none';
+            };
+
+            btnSec.appendChild(retryBtn);
+            // O botão de ativar modo offline foi removido da interface. O modo offline continua acessível via console oculto.
+
+            container.appendChild(textSec);
+            container.appendChild(btnSec);
+            ov.appendChild(container);
+            document.body.appendChild(ov);
+          }
+          return ov;
+        }
+        async function updateOfflineOverlay(){
+          const ov = createOfflineOverlay();
+          const override = sessionStorage.getItem(overrideKey) === '1';
+          let show = false;
+          try{
+            // Se estiver offline (navigator.onLine === false) ou rodando via file://, marcamos para exibir a tela.
+            if(!navigator.onLine || location.protocol === 'file:'){
+              show = true;
+            }else{
+              // Verifica a disponibilidade do backend com uma requisição de saúde e um timeout curto.
+              // Se a chamada falhar ou não responder com status OK, consideramos indisponível.
+              const controller = new AbortController();
+              const timer = setTimeout(() => controller.abort(), 1500);
+              try{
+                const resp = await fetch('/.netlify/functions/erp_health', {
+                  method: 'GET',
+                  cache: 'no-store',
+                  signal: controller.signal
+                });
+                clearTimeout(timer);
+                if(!resp.ok){
+                  show = true;
+                }
+              }catch(_e){
+                clearTimeout(timer);
+                show = true;
+              }
+            }
+          }catch(_e){
+            show = true;
+          }
+          if(show && !override){
+            ov.style.display = 'flex';
+            // Se houver overlay de licença visível, esconda-o enquanto a tela offline estiver ativa
+            const lic = document.getElementById('licenseBlockOverlay');
+            if(lic) lic.style.display = 'none';
+          }else{
+            ov.style.display = 'none';
+            // Quando retornar à conexão normal, removemos a permissão de override
+            if(navigator.onLine && override){
+              sessionStorage.removeItem(overrideKey);
+            }
+            // Reforça a verificação de licença para restaurar o overlay de licença se necessário
+            if(typeof enforceLicense === 'function'){
+              try{ enforceLicense(); }catch(_){}
+            }
+          }
+        }
+        window.addEventListener('online', updateOfflineOverlay);
+        window.addEventListener('offline', updateOfflineOverlay);
+        setTimeout(updateOfflineOverlay, 100);
+      }catch(e){ console.warn('Offline overlay error', e); }
+    })();
+
+    /* ========== Auto reload a cada 24 horas ==========
+       Agenda um recarregamento automático da página após 24 horas de uso continuo.
+       O reload força a atualização com cache busting (modo true), garantindo que o
+       usuário esteja sempre com a versão mais recente da aplicação. */
+    (function(){
+      try{
+        const ms = 24 * 60 * 60 * 1000;
+        setTimeout(function(){
+          try{ location.reload(true); }catch(_){ location.reload(); }
+        }, ms);
+      }catch(e){ console.warn('Auto reload error', e); }
+    })();
+
     </script>
     <!-- ====== Módulo de atualização e melhorias ====== -->
     <script type="module">
@@ -8252,34 +9438,30 @@ setInterval(checkDevedorAlerts, 600000);
       // Esta implementação utiliza o mesmo módulo de scanner do carrinho para ler códigos de barras via câmera.
       // Quando um código é detectado, a venda rápida é preenchida automaticamente e quantidades são incrementadas.
       window.onScannerQuickClick = function() {
+        /*
+         * Substituímos a implementação anterior (que tentava abrir a câmera através
+         * de módulos externos) por um mecanismo local de leitura de código de
+         * barras. Ao clicar no botão de scanner, será exibido o modal
+         * personalizado definido em scanAndFill(), permitindo que o usuário
+         * digite ou cole o código do produto. O código será inserido no campo
+         * correspondente (v_busca ou c_busca) dependendo do modo de venda. Em
+         * seguida, a lista de produtos é filtrada automaticamente.
+         */
         try {
-          if (window.UPDATE_FLAGS && window.UPDATE_FLAGS.enableScannerButton && window.Update && Update.scanner) {
-            // Utiliza um callback unificado que decide o que fazer com o código
-            Update.scanner.openCamera({
-              onDetected: (code) => {
-                try { if (typeof window.processCameraScan === 'function') window.processCameraScan(String(code)); } catch (ex) { console.warn('Erro no processCameraScan:', ex); }
+          const mode = (typeof salesMode !== 'undefined') ? salesMode : 'rapida';
+          const targetId = mode === 'rapida' ? 'v_busca' : 'c_busca';
+          const onAfter = () => {
+            try{
+              if(mode === 'rapida'){
+                if(typeof filtrarProdutosVenda === 'function') filtrarProdutosVenda();
+              } else {
+                if(typeof filtrarProdutosCarrinho === 'function') filtrarProdutosCarrinho();
               }
-            }).then((res) => {
-              // fallback para scanner legado se a câmera falhar
-              if (!res || !res.ok) {
-                if (typeof toggleSkan === 'function') {
-                  toggleSkan('vendas');
-                }
-              }
-            }).catch((err) => {
-              console.warn('Erro ao abrir câmera do scanner (venda rápida):', err);
-              if (typeof toggleSkan === 'function') {
-                toggleSkan('vendas');
-              }
-            });
-          } else {
-            // scanner desativado ou update ausente: usa overlay legado
-            if (typeof toggleSkan === 'function') {
-              toggleSkan('vendas');
-            }
-          }
+            }catch(_e){}
+          };
+          scanAndFill({ targetInputId: targetId, onResult: onAfter });
         } catch (e) {
-          console.warn('Erro no botão de scanner (venda rápida):', e);
+          console.warn('Erro no botão de scanner (venda rápida/completa):', e);
         }
       };
     </script>
@@ -8962,11 +10144,12 @@ setInterval(checkDevedorAlerts, 600000);
         const { targetInputId, onResult } = opts || {};
         const input = document.getElementById(targetInputId);
         if(!input) return;
-        // Preferir BarcodeDetector se suportado
-        const supportedFormats = window.BarcodeDetector && typeof BarcodeDetector.getSupportedFormats === 'function' ? await BarcodeDetector.getSupportedFormats() : null;
-        const useBarcode = (window.BarcodeDetector && supportedFormats && ['ean_13','code_128','ean_8','code_39','qr_code'].some(fmt => supportedFormats.includes(fmt)));
+        // Tente usar o BarcodeDetector somente se suportado e a página não estiver
+        // rodando via protocolo "file:". Para ambientes locais ou onde a câmera
+        // não está disponível (como neste projeto), pulamos essa etapa.
         let code = null;
-        if(useBarcode){
+        const canUseCamera = window.location.protocol !== 'file:' && window.BarcodeDetector && typeof navigator.mediaDevices?.getUserMedia === 'function';
+        if(canUseCamera){
           try{
             const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode:'environment' } });
             const video = document.createElement('video');
@@ -8982,7 +10165,6 @@ setInterval(checkDevedorAlerts, 600000);
               }
               bitMap.close();
             };
-            // Tenta por até 5 segundos ler um código
             const startTime = Date.now();
             while(!code && (Date.now() - startTime) < 5000){
               await scanFrame();
@@ -8993,15 +10175,69 @@ setInterval(checkDevedorAlerts, 600000);
             console.warn('Erro ao abrir câmera para scanner:', e);
           }
         }
-        // Fallback: prompt manual se não encontrou ou API indisponível
+        // Fallback manual: exibe um modal personalizado para inserção de código
         if(!code){
-          const manual = prompt('Digite ou cole o código do produto:');
-          if(manual) code = manual.trim();
+          code = await new Promise((resolve) => {
+            // Cria overlay escuro
+            const overlay = document.createElement('div');
+            overlay.style.position = 'fixed';
+            overlay.style.top = '0';
+            overlay.style.left = '0';
+            overlay.style.width = '100%';
+            overlay.style.height = '100%';
+            overlay.style.background = 'rgba(0,0,0,0.5)';
+            overlay.style.display = 'flex';
+            overlay.style.alignItems = 'center';
+            overlay.style.justifyContent = 'center';
+            overlay.style.zIndex = '10000';
+            // Conteúdo do modal
+            const box = document.createElement('div');
+            box.style.background = '#fff';
+            box.style.padding = '20px';
+            box.style.borderRadius = '8px';
+            box.style.maxWidth = '90%';
+            box.style.width = '320px';
+            box.style.boxShadow = '0 2px 10px rgba(0,0,0,0.3)';
+            box.innerHTML = `
+              <h3 style="margin-top:0; font-size:1.2rem;">Digite ou cole o código do produto</h3>
+              <input id="manualCodeInput" style="width:100%; padding:10px; font-size:1rem; margin-bottom:10px;" autofocus />
+              <div style="text-align:right;">
+                <button id="manualCodeCancel" style="margin-right:10px; padding:6px 12px;">Cancelar</button>
+                <button id="manualCodeOk" style="padding:6px 12px;">OK</button>
+              </div>
+            `;
+            overlay.appendChild(box);
+            document.body.appendChild(overlay);
+            const inputField = box.querySelector('#manualCodeInput');
+            const cancelBtn = box.querySelector('#manualCodeCancel');
+            const okBtn = box.querySelector('#manualCodeOk');
+            function cleanup(val){
+              overlay.remove();
+              resolve(val);
+            }
+            okBtn.addEventListener('click', () => {
+              const val = inputField.value.trim();
+              cleanup(val || null);
+            });
+            cancelBtn.addEventListener('click', () => {
+              cleanup(null);
+            });
+            inputField.addEventListener('keydown', (e) => {
+              if(e.key === 'Enter'){
+                const val = inputField.value.trim();
+                cleanup(val || null);
+              } else if(e.key === 'Escape'){
+                cleanup(null);
+              }
+            });
+            // Focus input after a tick to ensure overlay is in DOM
+            setTimeout(() => inputField.focus(), 50);
+          });
         }
         if(code){
           input.value = code;
           if(typeof onResult === 'function'){
-            onResult(code);
+            try{ onResult(code); } catch(e) { console.warn(e); }
           }
         }
       }
@@ -9010,6 +10246,9 @@ setInterval(checkDevedorAlerts, 600000);
        * de cadastro ou de busca e aciona o scanner apropriado.
        */
       function onScannerEstoqueClick(){
+        // Exibe um toast simples para indicar que o botão de scanner foi clicado. Isto ajuda no
+        // diagnóstico para garantir que o evento esteja disparando corretamente.
+        try { if (typeof toast === 'function') toast('Scanner do estoque acionado', 'info'); } catch(_e) {}
         // Se estiver com um modal de edição ativo (estoqueSearch), tentar ler para o campo de busca
         const active = document.activeElement;
         if(active && active.id === 'estoqueSearch'){
@@ -9021,7 +10260,297 @@ setInterval(checkDevedorAlerts, 600000);
       }
       window.scanAndFill = scanAndFill;
       window.onScannerEstoqueClick = onScannerEstoqueClick;
+    // Garante que o botão de scanner de estoque sempre abra o leitor manual.
+    // Em alguns contextos a propriedade onclick pode ser sobrescrita por outros
+    // módulos do ERP. Para assegurar que a ação desejada seja executada,
+    // registramos explicitamente um listener após o carregamento do DOM.
+    // Como o script é carregado ao final do corpo do documento, o DOM já está
+    // pronto. Portanto, registramos diretamente o listener do scanner de
+    // estoque sem aguardar o evento DOMContentLoaded. Este listener garante
+    // que, ao clicar no botão de scanner, seja aberto o modal de leitura de
+    // código (ao invés de depender de comportamentos de outros módulos).
+    try {
+      const stockBtn = document.getElementById('skan_estoque_btn');
+      if (stockBtn) {
+        // Verifique se o botão já está usando o novo módulo de scanner Skan. Se estiver,
+        // não registre o fallback manual (scanAndFill), pois o Skan oferece suporte
+        // tanto a câmera quanto a leitores USB. Caso contrário, mantenha o
+        // comportamento legado de abrir o modal de leitura manual.
+        const existingHandler = stockBtn.getAttribute('onclick') || '';
+        if (!existingHandler.includes('toggleSkan')) {
+          stockBtn.addEventListener('click', function(ev) {
+            ev.preventDefault();
+            // Se o usuário estiver pesquisando no campo de busca do estoque, use esse campo
+            const active = document.activeElement;
+            if (active && active.id === 'estoqueSearch') {
+              scanAndFill({ targetInputId: 'estoqueSearch', onResult: () => { updateEstoqueSearch(); render(true); } });
+            } else {
+              scanAndFill({ targetInputId: 'e_cod' });
+            }
+          });
+        }
+      }
+    } catch (e) {
+      console.warn('Erro ao registrar listener do scanner de estoque:', e);
+    }
     })();
+    </script>
+
+    <!-- Configuração de navegação com Enter no formulário de cadastro de estoque.
+         Quando o usuário pressiona Enter em um campo, move o foco para o próximo
+         campo de cadastro. No último campo, foca o botão de salvar. -->
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        const order = ['e_cod','e_nome','e_qtd','e_min','e_custo','e_preco','e_lucro'];
+        order.forEach((id, idx) => {
+          const el = document.getElementById(id);
+          if(!el) return;
+          el.addEventListener('keydown', function(ev){
+            if(ev.key === 'Enter'){
+              ev.preventDefault();
+              const nextId = order[idx+1];
+              if(nextId){
+                const nextEl = document.getElementById(nextId);
+                if(nextEl) nextEl.focus();
+              } else {
+                // Se for o último campo, foca o botão de salvar produto
+                const btn = document.getElementById('btnSalvarProduto');
+                if(btn) btn.focus();
+              }
+            }
+          });
+        });
+      });
+    </script>
+    <!-- Scripts adicionais: orçamentos e dispositivos -->
+    <script>
+    /* ========== Orçamentos ========== */
+    function renderOrcamentos(){
+      try{
+        // Suporte para múltiplos contêineres de orçamentos (ajustes e ferramentas)
+        const conts = ['orcamentosList','orcamentosListTool'].map(id => document.getElementById(id)).filter(c => c);
+        if(conts.length === 0) return;
+        const lista = Array.isArray(db.orcamentos) ? db.orcamentos : [];
+        // Gera o HTML da tabela apenas uma vez para reuso em todos os contêineres
+        let html = '';
+        if(lista.length === 0){
+          html = '<div class="small">Nenhum orçamento salvo.</div>';
+        } else {
+          html = '<table style="width:100%; border-collapse:collapse; font-size:0.9em;"><thead><tr>';
+          html += '<th style="border:1px solid var(--border); padding:6px;">#</th>';
+          html += '<th style="border:1px solid var(--border); padding:6px;">Número</th>';
+          html += '<th style="border:1px solid var(--border); padding:6px;">Cliente</th>';
+          html += '<th style="border:1px solid var(--border); padding:6px;">Data</th>';
+          html += '<th style="border:1px solid var(--border); padding:6px;">Total</th>';
+          html += '<th style="border:1px solid var(--border); padding:6px;">Status</th>';
+          html += '<th style="border:1px solid var(--border); padding:6px;">Ações</th>';
+          html += '</tr></thead><tbody>';
+          lista.forEach(function(orc, idx){
+            const totalBR = centsToBR(Number(orc.total_c) || 0);
+            html += '<tr>';
+            html += '<td style="border:1px solid var(--border); padding:6px; text-align:center;">' + (idx+1) + '</td>';
+            html += '<td style="border:1px solid var(--border); padding:6px;">' + escapeHTML(orc.numero || orc.id || '') + '</td>';
+            html += '<td style="border:1px solid var(--border); padding:6px;">' + escapeHTML(orc.cliente || '-') + '</td>';
+            html += '<td style="border:1px solid var(--border); padding:6px;">' + escapeHTML(orc.data || orc.createdAt || '') + '</td>';
+            html += '<td style="border:1px solid var(--border); padding:6px; text-align:right;">R$ ' + totalBR + '</td>';
+            html += '<td style="border:1px solid var(--border); padding:6px; text-transform:capitalize;">' + escapeHTML(orc.status || 'pendente') + '</td>';
+            html += '<td style="border:1px solid var(--border); padding:6px; text-align:center;">';
+            // Botão para editar orçamentos, sempre disponível
+            html += '<button class="ghost" data-id="' + escapeHTML(String(orc.id)) + '" onclick="editOrcamento(this.dataset.id)">Editar</button> ';
+            // Botão de aprovar aparece apenas quando ainda não aprovado
+            if(orc.status !== 'aprovado'){
+              html += '<button data-id="' + escapeHTML(String(orc.id)) + '" onclick="approveOrcamento(this.dataset.id)">Aprovar</button> ';
+            }
+            html += '<button class="ghost" data-id="' + escapeHTML(String(orc.id)) + '" onclick="deleteOrcamento(this.dataset.id)">Excluir</button>';
+            html += '</td>';
+            html += '</tr>';
+          });
+          html += '</tbody></table>';
+        }
+        conts.forEach(function(cont){ cont.innerHTML = html; });
+      }catch(e){ console.warn('renderOrcamentos error', e); }
+    }
+
+    // ====================
+    // Orçamento: edição
+    // --------------------
+    // Variável global que indica se há um orçamento sendo editado. Quando
+    // definida (não null), o próximo salvamento de orçamento irá substituir
+    // o orçamento com o mesmo id em vez de criar um novo registro. Após
+    // salvar, a variável é redefinida para null.
+    let editingOrcId = null;
+
+    /**
+     * Carrega um orçamento existente para edição. Copia todos os dados do
+     * orçamento selecionado (itens, cliente, contato, mão de obra, validade,
+     * observações) para os campos da UI de orçamento e exibe o cartão de
+     * orçamento. Se o orçamento estiver aprovado, ainda permite editar os
+     * campos básicos, mas mantém o status ao salvar. Quando o id não for
+     * encontrado, exibe um aviso.
+     *
+     * @param {string|number} id Identificador do orçamento a ser editado
+     */
+    function editOrcamento(id){
+      try{
+        const lista = Array.isArray(db.orcamentos) ? db.orcamentos : [];
+        const orcObj = lista.find(o => String(o.id) === String(id));
+        if(!orcObj){ toast('Orçamento não encontrado.', 'bad'); return; }
+        // Sinaliza que estamos editando este orçamento
+        editingOrcId = orcObj.id;
+        // Copia itens (cod, nome, qtd, preco_c) para o orçamento em memória
+        orc.itens = (orcObj.itens || []).map(function(it){ return {
+          cod: String(it.cod),
+          nome: String(it.nome),
+          qtd: Number(it.qtd) || 0,
+          preco_c: Number(it.preco_c) || 0,
+          total_c: mulCents(Number(it.preco_c)||0, Number(it.qtd)||0)
+        }; });
+        // Atualiza campos de cliente, contato, validade, mão de obra e observações
+        if($("o_cliente")) $("o_cliente").value = String(orcObj.cliente || '');
+        if($("o_contato")) $("o_contato").value = String(orcObj.contato || '');
+        if($("o_validade")) $("o_validade").value = String(orcObj.validade || '');
+        // Campo de mão de obra armazena centavos; converte para string em reais
+        if($("o_servico")) $("o_servico").value = orcObj.mao_c ? centsToBR(orcObj.mao_c) : '';
+        if($("o_obs")) $("o_obs").value = String(orcObj.obs || '');
+        // Exibe UI de orçamento e renderiza itens
+        const card = $("orcCard");
+        if(card) card.style.display = 'block';
+        renderOrc(true);
+        toast('Editando orçamento #' + escapeHTML(String(orcObj.numero || '')), 'ok');
+      }catch(e){ console.warn('editOrcamento error', e); }
+    }
+
+    function approveOrcamento(id){
+      try{
+        const lista = Array.isArray(db.orcamentos) ? db.orcamentos : [];
+        const idx = lista.findIndex(o => String(o.id) === String(id));
+        if(idx < 0){ toast('Orçamento não encontrado.', 'bad'); return; }
+        const orc = lista[idx];
+        if(orc.status === 'aprovado'){ toast('Orçamento já aprovado.', 'warn'); return; }
+        // Verificar estoque. Caso algum item esteja em falta, pergunta ao usuário
+        // se deseja prosseguir mesmo assim. Permite aprovar orçamentos que
+        // contenham itens sem quantidade suficiente, ajustando o estoque para
+        // refletir a retirada (pode ficar negativo).
+        for(const it of (orc.itens || [])){
+          const prod = (db.estoque || []).find(p => String(p.cod) === String(it.cod));
+          if(!prod){ toast('Produto não encontrado: ' + it.cod, 'bad'); return; }
+          if(Number(prod.qtd) < Number(it.qtd)){
+            const nome = s(prod.nome || prod.cod);
+            const proceed = confirm('Estoque insuficiente para ' + nome + '. Deseja aprovar assim mesmo?');
+            if(!proceed){ return; }
+            // Se o usuário concordou, continuamos sem retornar
+          }
+        }
+        const groupId = 'ORC-' + Date.now();
+        const agora = nowDateTime();
+        // Processar itens
+        (orc.itens || []).forEach(function(it, index){
+          const prod = (db.estoque || []).find(p => String(p.cod) === String(it.cod));
+          if(prod){ prod.qtd = clampInt(prod.qtd,0) - Number(it.qtd); }
+          const totalLinha_c = Number(it.total_c) || 0;
+          const servicoLinha_c = (index === 0 ? Number(orc.mao_c || 0) : 0);
+          const custo = Number(prod && prod.custo_c ? prod.custo_c : 0);
+          const lucroItem_c = mulCents((Number(it.preco_c) - custo), Number(it.qtd));
+          const lucroLinha_c = addCents(lucroItem_c, servicoLinha_c);
+          db.vendas.push({
+            id: makeId(),
+            data: agora,
+            cod: String(it.cod),
+            nome: String(it.nome),
+            qtd: Number(it.qtd),
+            servico_c: servicoLinha_c,
+            total_c: addCents(totalLinha_c, servicoLinha_c),
+            pag: 'orcamento',
+            lucro_c: lucroLinha_c,
+            cancelada: false,
+            groupId: groupId
+          });
+        });
+        // Registrar caixa
+        db.caixa.push({
+          data: agora,
+          desc: 'Venda (Orçamento)',
+          valor_c: Number(orc.total_c) || 0,
+          tipo: 'entrada',
+          pag: 'orcamento',
+          groupId: groupId
+        });
+        // Atualizar status
+        orc.status = 'aprovado';
+        orc.approvedAt = agora;
+        save(); render(true);
+        // Montar recibo
+        lastReceipt = {
+          receiptId: 'REC-' + Date.now(),
+          date: agora,
+          payment: 'orcamento',
+          items: (orc.itens || []).map(function(it){ return {
+            cod: String(it.cod),
+            nome: String(it.nome),
+            qtd: Number(it.qtd),
+            preco_c: Number(it.preco_c) || 0,
+            total_c: Number(it.total_c) || 0
+          }; }),
+          subtotal_c: Number(orc.subtotal_c) || 0,
+          service_c: Number(orc.mao_c) || 0,
+          total_c: Number(orc.total_c) || 0,
+          received_c: Number(orc.total_c) || 0,
+          change_c: 0,
+          groupId: groupId
+        };
+        if(typeof maybeEmitNotaFiscal === 'function') maybeEmitNotaFiscal(lastReceipt);
+        toast('Orçamento aprovado com sucesso!', 'ok');
+        // Toca som de conclusão de venda, se definido
+        try{ if(typeof saleSound === 'function') saleSound(); }catch(_e){}
+        renderOrcamentos();
+      }catch(e){ console.warn('approveOrcamento error', e); }
+    }
+
+    function deleteOrcamento(id){
+      try{
+        if(!confirm('Deseja realmente excluir este orçamento?')) return;
+        const lista = Array.isArray(db.orcamentos) ? db.orcamentos : [];
+        const idx = lista.findIndex(o => String(o.id) === String(id));
+        if(idx < 0){ toast('Orçamento não encontrado.', 'bad'); return; }
+        lista.splice(idx, 1);
+        save();
+        toast('Orçamento excluído.', 'ok');
+        renderOrcamentos();
+      }catch(e){ console.warn('deleteOrcamento error', e); }
+    }
+
+    /* ========== Configurações de Dispositivos ========== */
+    function setScanDevice(val){
+      try{
+        if(!db._meta) db._meta = {};
+        db._meta.scanDevice = val;
+        save();
+        toast('Dispositivo de scanner atualizado.', 'ok');
+      }catch(e){ console.warn('setScanDevice error', e); }
+    }
+
+    function setPrinterDevice(val){
+      try{
+        if(!db._meta) db._meta = {};
+        db._meta.printerDevice = val;
+        save();
+        toast('Dispositivo de impressora atualizado.', 'ok');
+      }catch(e){ console.warn('setPrinterDevice error', e); }
+    }
+
+    // Alterna a ordem do histórico de vendas (mais recente ↔ mais antigo). Atualiza
+    // o rótulo do botão (opcional) e chama render(true) para recarregar a tabela.
+    function toggleVendasOrder(){
+      try{
+        vendasOrderDesc = !vendasOrderDesc;
+        const btn = document.getElementById('btnVendasOrder');
+        if(btn){
+          // Mantém o mesmo rótulo para não poluir a interface, apenas muda a dica.
+          btn.title = vendasOrderDesc ? 'Mostrar da mais recente à mais antiga' : 'Mostrar da mais antiga à mais recente';
+        }
+        render(true);
+      }catch(e){ console.warn('toggleVendasOrder error', e); }
+    }
     </script>
 </body>
 </html>

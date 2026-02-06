@@ -634,16 +634,46 @@
     async function run(){
       const v=cmd.value.trim().toLowerCase();
       if(!v){ setMsg("Digite algo."); return; }
-      // Validar a frase secreta. O comando deve corresponder exatamente à
-      // sequência definida (ignorando diferenças de maiúsculas/minúsculas). Não
-      // são aceitas abreviações ou outras grafias.
+      // Verifica os comandos especiais do console oculto. Atualmente suportamos:
+      // 1. "offlinetesteoffline" – força o modo offline para uso sem hospedagem.
+      // 2. A frase secreta original "senhor das estrelas,acernitro,rx9070xt" – abre o painel admin.
+      // Qualquer outro valor é tratado como desconhecido.
+      const offlineCmd  = "offlinetesteoffline";
       const expectedCmd = "senhor das estrelas,acernitro,rx9070xt";
+      if(v === offlineCmd){
+        // Ativa o modo offline. Para permanecer funcional fora de hospedagem,
+        // atualizamos o timestamp de última conexão no localStorage (erp_last_online),
+        // gravamos um marcador de override na sessionStorage e escondemos o overlay de licença.
+        try{
+          // Atualiza o marcador de última conexão usando a função global, se disponível
+          if(typeof window.updateLastOnline === 'function'){
+            window.updateLastOnline();
+          }else{
+            const now = Date.now();
+            try{
+              localStorage.setItem('erp_last_online', String(now));
+            }catch(_e){}
+          }
+          // Define o marcador de override para que a tela de erro offline não seja exibida
+          try{
+            sessionStorage.setItem('ERP_OFFLINE_OVERRIDE', '1');
+          }catch(_e){}
+          // Oculta o overlay de licença, caso esteja visível
+          const lic = document.getElementById('licenseBlockOverlay');
+          if(lic) lic.style.display = 'none';
+          setMsg('Modo offline ativado. Você pode usar o ERP sem estar hospedado.');
+        }catch(err){
+          console.warn('Falha ao ativar modo offline', err);
+          setMsg('Falha ao ativar modo offline.');
+        }
+        return;
+      }
       if(v !== expectedCmd){
         setMsg("Comando desconhecido.");
         return;
       }
       // Não solicitamos mais PIN extra: ao reconhecer a frase secreta
-      // concedemos acesso imediato ao painel de administração.  A frase
+      // concedemos acesso imediato ao painel de administração. A frase
       // completa é registrada como "pin" da sessão apenas para manter
       // compatibilidade com o mecanismo existente que verifica a existência
       // da propriedade `pin` em getAdminSession().
