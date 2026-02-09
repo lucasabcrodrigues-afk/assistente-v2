@@ -787,6 +787,111 @@ body.mobile-mode #bottomNav button{
   padding:12px 0;
   font-size:14px;
 }
+/* ===== Ajuda e modal de ajuda ===== */
+.help-btn{
+  /* Mantém margens leves para separar do botão principal */
+  margin-left:4px;
+  cursor:pointer;
+  font-weight:bold;
+  /* Usa a cor primária do tema para garantir contraste tanto no modo claro
+     quanto no modo escuro. Se a variável não estiver definida, cai para
+     um azul padrão. */
+  color:var(--primary2, var(--primary, #2c3dd1));
+  /* Exibe como flex para centralizar o caractere e define uma área de
+     clique consistente. O tamanho pequeno evita poluir a interface,
+     mas garante área tátil aceitável. */
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:24px;
+  height:24px;
+  line-height:1;
+  border-radius:50%;
+  font-size:14px;
+}
+.help-btn:hover{
+  /* Realça com sublinhado para indicar interatividade */
+  text-decoration:underline;
+}
+@media (max-width:600px){
+  .help-btn{
+    /* Aumenta área de toque em telas pequenas conforme recomendação de
+       acessibilidade (aprox. 44px). A fonte também cresce para manter
+       legibilidade. */
+    width:32px;
+    height:32px;
+    font-size:18px;
+  }
+}
+/* Sobreposição e modal para ajuda contextual */
+#helpOverlay{
+  position:fixed;
+  top:0;
+  left:0;
+  right:0;
+  bottom:0;
+  background:rgba(0,0,0,0.3);
+  z-index:9998;
+  display:none;
+}
+#helpModal{
+  position:fixed;
+  top:50%;
+  left:50%;
+  transform:translate(-50%,-50%);
+  /*
+    Ajustes de cor para garantir legibilidade em qualquer tema.
+    Usamos ``--panel`` como fundo para manter contraste no modo escuro
+    e ``--text`` como cor de fonte para respeitar a paleta atual.
+    A propriedade ``--textColor`` não existe nas variáveis globais,
+    portanto substituímos por ``--text`` com fallback para preto.
+  */
+  background:var(--panel, #fff);
+  color:var(--text, #000);
+  border:1px solid var(--border, #ccc);
+  border-radius:6px;
+  padding:16px 20px;
+  box-shadow:0 2px 8px rgba(0,0,0,0.3);
+  max-width:320px;
+  z-index:9999;
+  display:none;
+}
+#helpModal .close{
+  position:absolute;
+  top:6px;
+  right:10px;
+  cursor:pointer;
+  font-weight:bold;
+}
+/* ===== Melhorias de layout para mobile ===== */
+@media (max-width: 600px){
+  body.mobile-mode button{
+    padding:12px 16px;
+    font-size:16px;
+  }
+  body.mobile-mode input,
+  body.mobile-mode select,
+  body.mobile-mode textarea{
+    min-height:40px;
+    font-size:16px;
+  }
+  body.mobile-mode table{
+    font-size:16px;
+  }
+  body.mobile-mode .grid{
+    grid-template-columns:1fr !important;
+    gap:10px;
+  }
+  body.mobile-mode .flex{
+    flex-direction:column;
+    gap:10px;
+  }
+  /* Assegura que os botões de impressão fiquem visíveis no caixa */
+  body.mobile-mode #caixa .card button{
+    width:100%;
+    margin-top:6px;
+  }
+}
 </style>
     <!-- Biblioteca de leitura de códigos de barras (QuaggaJS) -->
     <!-- Substituímos a biblioteca QuaggaJS pela html5‑qrcode para suporte moderno a scanners -->
@@ -794,9 +899,16 @@ body.mobile-mode #bottomNav button{
 </head>
 
 <body>
+  <!-- (scripts de teste removidos) -->
 <!-- Atualizado: título exibido no cabeçalho do sistema -->
 <header>🔥 LRS Assistente de empresas 🔥</header>
 <div id="toastWrap"></div>
+<!-- Sobreposição e modal para ajuda contextual -->
+<div id="helpOverlay" onclick="hideHelp()"></div>
+<div id="helpModal">
+  <span class="close" onclick="hideHelp()">✖</span>
+  <div class="help-content"></div>
+</div>
 
 <!-- LOGIN -->
 <section id="loginSection" class="active">
@@ -910,6 +1022,7 @@ body.mobile-mode #bottomNav button{
           <div class="grid" style="margin-top:6px; grid-template-columns:1fr 1fr; gap:4px;">
             <input type="text" id="scan_service" placeholder="Serviço (R$)" inputmode="decimal" />
             <input type="text" id="scan_discount" placeholder="Desconto (R$)" inputmode="decimal" />
+            <span class="help-btn" onclick="showHelp('desconto')">❔</span>
           </div>
           <div class="grid" style="margin-top:6px; grid-template-columns:1fr 1fr; gap:4px;">
             <input type="text" id="scan_recebido" placeholder="Recebido (R$ - dinheiro)" inputmode="decimal" />
@@ -1050,7 +1163,7 @@ body.mobile-mode #bottomNav button{
              toggleSkan('estoque'), que aciona a câmera ou o leitor USB para
              preencher automaticamente o código do produto. O atributo type
              continua como "button" para evitar submissão de formulários. -->
-        <button id="skan_estoque_btn" type="button" onclick="toggleSkan('estoque')" style="padding:8px 10px; border-radius:8px;">📷 Scanner</button>
+        <button id="skan_estoque_btn" type="button" onclick="toggleSkan('estoque')" style="padding:8px 10px; border-radius:8px;">📷 Scanner</button><span class="help-btn" onclick="showHelp('scanner')">❔</span>
       </div>
         <div class="grid">
         <input id="e_cod" placeholder="Código" />
@@ -1082,7 +1195,7 @@ body.mobile-mode #bottomNav button{
       </div>
       <br>
       <div class="flex">
-        <button id="btnSalvarProduto" onclick="addProduto()">Salvar Produto</button>
+        <button id="btnSalvarProduto" onclick="addProduto()">Salvar Produto</button><span class="help-btn" onclick="showHelp('salvarProduto')">❔</span>
         <button class="ghost" id="btnCancelarEdicao" style="display:none" onclick="cancelEditProduto()">Cancelar edição</button>
       </div>
       <div class="small" style="margin-top:8px;">
@@ -1191,14 +1304,16 @@ body.mobile-mode #bottomNav button{
           <input id="v_servico" placeholder="Serviço / Mão de obra (R$)" inputmode="decimal" />
           <!-- Desconto por item (%) -->
           <input id="v_desc_item" type="number" placeholder="Desc item %" min="0" step="0.01" title="Desconto percentual por item" />
+          <span class="help-btn" onclick="showHelp('desconto')">❔</span>
           <!-- Desconto no total (%) -->
           <input id="v_desc_total" type="number" placeholder="Desc total %" min="0" step="0.01" title="Desconto percentual no total" />
+          <span class="help-btn" onclick="showHelp('desconto')">❔</span>
           <!-- Botão para abrir o leitor de códigos diretamente na venda rápida -->
           <!-- Scanner: unificado com modo carrinho; usa openCamera se disponível -->
           <!-- O scanner da venda rápida agora usa o módulo de leitura Skan. Ao clicar,
                inicia a leitura via câmera ou leitor USB para inserir o código do produto.
                Mantém-se type="button" para não disparar submissão do formulário. -->
-          <button id="btnScannerQuick" type="button" title="Scanner" onclick="toggleSkan('vendas')" style="padding:9px 10px; border-radius:10px;">📷 Scanner</button>
+          <button id="btnScannerQuick" type="button" title="Scanner" onclick="toggleSkan('vendas')" style="padding:9px 10px; border-radius:10px;">📷 Scanner</button><span class="help-btn" onclick="showHelp('scanner')">❔</span>
           <select id="v_pag">
             <option value="dinheiro">Dinheiro</option>
             <option value="pix">Pix</option>
@@ -1207,12 +1322,12 @@ body.mobile-mode #bottomNav button{
           </select>
           <!-- Campos adicionais para venda rápida: valor recebido e troco -->
           <input id="v_recebido" placeholder="Recebido (só dinheiro)" inputmode="decimal" />
-          <input id="v_troco" placeholder="Troco" disabled />
+          <input id="v_troco" placeholder="Troco" disabled /><span class="help-btn" onclick="showHelp('troco')">❔</span>
           <!-- Segundo pagamento removido no modo Venda Rápida -->
         </div>
         <div class="small" id="v_hint" style="margin-top:8px;"></div>
         <div class="flex" style="margin-top:10px;">
-          <button onclick="registrarVenda()">✅ Confirmar Venda</button>
+          <button onclick="registrarVenda()">✅ Confirmar Venda</button><span class="help-btn" onclick="showHelp('confirmarVenda')">❔</span>
           <!-- Botão de orçamento identificável para ser habilitado/desabilitado via preferências -->
           <button id="btnOrcamentoRapida" class="ghost" onclick="abrirOrcamentoUI()">🧾 Orçamento</button>
         </div>
@@ -1273,11 +1388,11 @@ body.mobile-mode #bottomNav button{
             <!-- Identificador específico para a estatística de serviço, permitindo ocultá-la nas preferências -->
             <div id="c_srv_stat" class="stat">🛠 Serviço<br><b>R$ <span id="c_srv">0,00</span></b></div>
             <div class="stat">✅ Total<br><b>R$ <span id="c_total">0,00</span></b></div>
-            <div class="stat">🧮 Troco<br><b>R$ <span id="c_troco_view">0,00</span></b></div>
+            <div class="stat">🧮 Troco<br><b>R$ <span id="c_troco_view">0,00</span></b></div><span class="help-btn" onclick="showHelp('troco')">❔</span>
           </div>
 
           <div class="flex" style="margin-top:10px;">
-            <button onclick="finalizarCarrinho()">✅ Finalizar Venda (Carrinho)</button>
+            <button onclick="finalizarCarrinho()">✅ Finalizar Venda (Carrinho)</button><span class="help-btn" onclick="showHelp('confirmarVenda')">❔</span>
             <button class="ghost" onclick="limparCarrinho()">🧹 Limpar carrinho</button>
             <!-- Novo botão de scanner: usa o mesmo handler da venda rápida para unificar o comportamento.  
                  Ao invés de abrir o modal legado de scanner no modo de venda completa, utilizamos
@@ -1286,7 +1401,7 @@ body.mobile-mode #bottomNav button{
             <!-- Scanner no carrinho de venda completa usando o módulo Skan. Este botão
                  compartilha o mesmo contexto 'vendas' da venda rápida para permitir
                  leituras de código por câmera e leitores USB. -->
-            <button id="btnScannerCart" type="button" class="ghost" onclick="toggleSkan('vendas')">📷 Scanner</button>
+            <button id="btnScannerCart" type="button" class="ghost" onclick="toggleSkan('vendas')">📷 Scanner</button><span class="help-btn" onclick="showHelp('scanner')">❔</span>
             <button id="btnPrintReceipt" class="ghost" style="display:none" onclick="imprimirUltimoComprovante()">🖨 Imprimir comprovante</button>
             <!-- Botão para abrir o módulo de orçamento também na venda completa -->
             <button id="btnOrcamentoCart" class="ghost" onclick="abrirOrcamentoUI()">🧾 Orçamento</button>
@@ -1376,7 +1491,7 @@ body.mobile-mode #bottomNav button{
     <div class="card">
       <h3>Abertura de Caixa</h3>
       <input id="cx_abertura" placeholder="Valor inicial (R$)" inputmode="decimal" /><br><br>
-      <button onclick="abrirCaixa()">Abrir Caixa</button>
+      <button onclick="abrirCaixa()">Abrir Caixa</button><span class="help-btn" onclick="showHelp('abrirFecharCaixa')">❔</span>
     </div>
 
     <div class="card">
@@ -1410,7 +1525,7 @@ body.mobile-mode #bottomNav button{
       </div>
 
       <br>
-      <button onclick="movimentoManual()">Lançar Movimento</button>
+      <button onclick="movimentoManual()">Lançar Movimento</button><span class="help-btn" onclick="showHelp('movimentoManual')">❔</span>
 
       <div class="small" style="margin-top:8px;">
         Use “Saída” para despesas/fornecedor/sangria. “Entrada” para ajustes.
@@ -1420,7 +1535,7 @@ body.mobile-mode #bottomNav button{
     <div class="card">
       <h3>Fechamento de Caixa</h3>
       <input id="cx_fechamento" placeholder="Valor contado (R$)" inputmode="decimal" /><br><br>
-      <button onclick="fecharCaixa()">Fechar Caixa</button>
+      <button onclick="fecharCaixa()">Fechar Caixa</button><span class="help-btn" onclick="showHelp('abrirFecharCaixa')">❔</span>
       <div id="cx_relatorio" style="margin-top:10px"></div>
     </div>
 
@@ -1454,21 +1569,36 @@ body.mobile-mode #bottomNav button{
       </table>
       <div id="cx_totais" class="small" style="margin-top:8px;"></div>
     </div>
-    <div class="card">
-      <h3>Impressão de Fluxo</h3>
-      <!-- Inputs dedicados para seleção de data e mês do fluxo. Colocados lado a lado com os botões
-           para permitir que o operador escolha o dia específico ou o mês antes de imprimir o relatório. -->
-      <div class="grid" style="margin-bottom:6px; gap:6px; align-items:center;">
-        <!-- Seleção de dia para impressão do fluxo diário -->
-        <input type="date" id="cx_print_dia" title="Dia do fluxo diário" style="min-width:140px;" />
-        <button onclick="imprimirFluxo('diario')">🖨️ Imprimir Fluxo Diário</button>
-        <!-- Seleção de mês para impressão do fluxo mensal. input type="month" retorna valor YYYY-MM -->
-        <input type="month" id="cx_print_mes" title="Mês do fluxo mensal" style="min-width:140px;" />
-        <button onclick="imprimirFluxo('mensal')">🖨️ Imprimir Fluxo Mensal</button>
+    <!-- A funcionalidade de impressão de fluxo foi removida para simplificar a interface do caixa. -->
+
+    <!-- Novo Módulo: Fluxo de Caixa -->
+    <!--
+      Este bloco implementa a geração de relatório de fluxo de caixa em PDF de forma isolada.
+      Ele permite selecionar um período (diário, mensal ou anual), informar a data/mês/ano
+      correspondente e gerar ou baixar um PDF contendo as entradas, saídas e vendas do período.
+      O módulo foi projetado para não interferir no restante da aba Caixa e é responsivo,
+      adaptando-se a telas menores com botões grandes e layout em coluna. O comportamento e a
+      lógica estão implementados no arquivo pdfFluxo.js.
+    -->
+    <div class="card" id="fluxo_card">
+      <h3>📄 — Fluxo de Caixa</h3>
+      <div class="grid" id="fluxo_period_selector" style="align-items:center; gap:10px;">
+        <select id="fluxo_periodo" title="Selecione o tipo de período" onchange="if(window.updateFluxoDateInputs){ updateFluxoDateInputs(); }">
+          <option value="diario">Diário</option>
+          <option value="mensal">Mensal</option>
+          <option value="anual">Anual</option>
+        </select>
+        <!-- Os campos de seleção de data/mês/ano são exibidos ou escondidos conforme o tipo de período escolhido.  -->
+        <input type="date" id="fluxo_diario" title="Selecione a data" />
+        <!-- input type="month" é suportado pela maioria dos navegadores modernos; para navegadores antigos será tratado pelo JS -->
+        <input type="month" id="fluxo_mensal" title="Selecione o mês" style="display:none;" />
+        <input type="number" id="fluxo_anual" title="Selecione o ano" min="2000" max="2100" step="1" style="display:none;" />
       </div>
-      <div class="small">
-        Gera um relatório detalhado do fluxo de caixa no período selecionado e abre a janela de impressão.
+      <div class="grid" id="fluxo_buttons" style="margin-top:10px; gap:10px;">
+        <button id="btnFluxoAbrir" class="button-primary">Gerar PDF (Abrir)</button>
+        <button id="btnFluxoBaixar" class="button-secondary">Baixar PDF</button>
       </div>
+      <div id="fluxo_status" class="small" style="margin-top:8px;"></div>
     </div>
   </section>
 
@@ -1590,11 +1720,11 @@ body.mobile-mode #bottomNav button{
       <h3>💾 Salvar / Carregar</h3>
       <div class="grid">
         <!-- Exporta o banco atual em um arquivo JSON no novo formato de backup. -->
-        <button onclick="exportBackup()">💾 Salvar Backup (Arquivo)</button>
+        <button onclick="exportBackup()">💾 Salvar Backup (Arquivo)</button><span class="help-btn" onclick="showHelp('exportBackup')">❔</span>
         <!-- Abre um seletor de arquivo para importar um JSON de backup no formato erp‑backup. -->
-        <button onclick="openImportBackup()">📂 Carregar Backup (Arquivo)</button>
+        <button onclick="openImportBackup()">📂 Carregar Backup (Arquivo)</button><span class="help-btn" onclick="showHelp('openImportBackup')">❔</span>
         <!-- Mescla um JSON de backup com o banco atual sem sobrescrever. Somente adiciona/atualiza registros. -->
-        <button onclick="openImportBackupMerge()">➕ Mesclar Arquivo</button>
+        <button onclick="openImportBackupMerge()">➕ Mesclar Arquivo</button><span class="help-btn" onclick="showHelp('openImportBackupMerge')">❔</span>
         <!-- Permite restaurar rapidamente o backup automático mais recente caso o banco esteja corrompido. -->
         <button onclick="restoreLastBackupUI()">🔄 Restaurar Último Backup</button>
         <!-- Exporta todas as vendas registradas em formato CSV para análise externa. -->
@@ -1835,7 +1965,37 @@ body.mobile-mode #bottomNav button{
           <div id="contabResult" style="margin-top:12px;"></div>
           <div class="noPrint" style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
             <button onclick="printContabilidade()">🖨 Imprimir</button>
+            <button onclick="abrirContabCompleta()">💼 Fazer minha contabilidade</button><span class="help-btn" onclick="showHelp('fazerContabilidade')">❔</span>
           </div>
+        </div>
+        <!-- Painel de Contabilidade Completa: permite resumo personalizado e geração de PDF -->
+        <div id="contabCompleta" class="card" style="display:none; margin-top:12px;">
+          <h4>📊 Minha Contabilidade Completa</h4>
+          <div class="small">Selecione o período e informe dados extras:</div>
+          <div class="flex" style="gap:8px; flex-wrap:wrap;">
+            <input type="date" id="contabInicio" placeholder="Início" />
+            <input type="date" id="contabFim" placeholder="Fim" />
+            <input id="contabDespesas" placeholder="Despesas extras (R$)" inputmode="decimal" />
+            <input id="contabProlabore" placeholder="Pró-labore (R$)" inputmode="decimal" />
+            <input id="contabOutrasReceitas" placeholder="Outras receitas (R$)" inputmode="decimal" />
+          </div>
+          <div class="flex" style="margin-top:8px; gap:8px; flex-wrap:wrap;">
+            <select id="contabRegime" onchange="onContabRegimeChange(this.value)">
+              <option value="simples">Simples (estimativa)</option>
+              <option value="mei">MEI (estimativa)</option>
+              <option value="outro">Outro (manual)</option>
+            </select>
+            <input id="contabImpostoManual" placeholder="Imposto manual (R$)" inputmode="decimal" style="display:none;" />
+          </div>
+          <div style="margin-top:8px;">
+            <textarea id="contabObservacoes" placeholder="Observações" style="width:100%;"></textarea>
+          </div>
+          <div class="flex noPrint" style="margin-top:8px; gap:8px; flex-wrap:wrap;">
+            <button onclick="calcularMinhaContab()">Calcular resumo</button>
+            <button onclick="gerarMinhaContabPDF()">Gerar PDF</button>
+            <button class="ghost" onclick="fecharMinhaContab()">Fechar</button>
+          </div>
+          <div id="contabCompletaResultado" style="margin-top:10px;"></div>
         </div>
       </div>
 
@@ -1938,6 +2098,8 @@ body.mobile-mode #bottomNav button{
         <!-- Nota Fiscal: PDF e Impressa -->
         <button id="btnToggleNfPDF" onclick="togglePreference('nf_pdf_enabled')">Ativar NF em PDF</button>
         <button id="btnToggleNfPrint" onclick="togglePreference('nf_print_enabled')">Ativar NF Impressa</button>
+        <!-- Novo: alternar exibição dos botões de ajuda contextual -->
+        <button id="btnToggleHelp" onclick="togglePreference('helpDisabled')">Ocultar Ajuda (?)</button>
       </div>
       <div class="small" style="margin-top:8px;">
         As preferências acima controlam a exibição de recursos sensíveis. Alterações são salvas imediatamente e refletem em toda a interface.
@@ -6150,6 +6312,16 @@ function updatePreferenceUI(){
       bNfPrint.textContent = pr ? 'Desativar NF Impressa' : 'Ativar NF Impressa';
       bNfPrint.classList.toggle('active', pr);
     }
+
+    // Novo: Ajuda contextual
+    const bHelp = $('btnToggleHelp');
+    if(bHelp){
+      const disabled = !!meta.helpDisabled;
+      // Quando desativado, o texto convida a mostrar; quando ativo, convida a ocultar.
+      bHelp.textContent = disabled ? 'Mostrar Ajuda (?)' : 'Ocultar Ajuda (?)';
+      // Consideramos ativo quando a ajuda está sendo exibida
+      bHelp.classList.toggle('active', !disabled);
+    }
   }catch(e){
     console.warn('updatePreferenceUI error', e);
   }
@@ -6159,6 +6331,18 @@ function updatePreferenceUI(){
 function applyPreferencesUI(){
   try{
     const meta = db && db._meta ? db._meta : {};
+
+    // Ajuda contextual: exibe ou oculta os botões de interrogação de acordo com a preferência.  Quando
+    // helpDisabled é verdadeiro, escondemos todos os elementos com a classe ``help-btn``.  A
+    // utilização de ``inline-flex`` garante que o espaçamento permaneça consistente quando
+    // exibidos.
+    try{
+      const showHelp = !meta.helpDisabled;
+      const helpEls = document.querySelectorAll('.help-btn');
+      helpEls.forEach(el => {
+        el.style.display = showHelp ? 'inline-flex' : 'none';
+      });
+    }catch(_e){}
     // Scanner buttons
     const skEstoque = $('skan_estoque_btn');
     if(skEstoque){
@@ -8424,6 +8608,440 @@ setInterval(checkAgendaAlerts, 60000);
 setInterval(checkDevedorAlerts, 600000);
 // (removido) atualização de botão de scan antigo foi substituída pelo novo módulo de scanner
 </script>
+    <!-- Script adicional para ajuda contextual e contabilidade completa -->
+    <script>
+    // Tabela de mensagens de ajuda contextual.  Use IDs como chaves e textos breves como valores.
+    const HELP_TEXTS = {
+      /* imprimirFluxoDiario e imprimirFluxoMensal removidos juntamente com a funcionalidade de impressão de fluxo */
+      abrirFecharCaixa: 'Abrir/Fechar caixa: permite iniciar o caixa com um valor inicial e encerrá-lo informando o valor contado.',
+      movimentoManual: 'Lançar movimento: registra manualmente entradas ou saídas no caixa para ajustes ou despesas.',
+      confirmarVenda: 'Confirmar venda: registra a venda de produtos/serviços e atualiza o caixa automaticamente.',
+      salvarProduto: 'Salvar produto: cadastra ou atualiza um produto no estoque com código, nome, quantidade, custo e preço.',
+      scanner: 'Scanner: ativa o leitor de códigos para preencher automaticamente campos de código de barras.',
+      troco: 'Troco: campo de cálculo automático de troco quando o pagamento é em dinheiro.',
+      fazerContabilidade: 'Fazer minha contabilidade: abre um formulário completo para resumo de receitas, despesas e impostos e gera um PDF organizado.'
+      ,desconto: 'Desconto: utilize este campo para aplicar descontos em itens ou no total da venda.'
+      ,exportBackup: 'Exportar backup: gera um arquivo de backup em formato JSON contendo todos os seus dados para guardar em segurança.'
+      ,openImportBackup: 'Importar backup: permite selecionar um arquivo JSON previamente salvo e restaurar completamente o banco de dados.'
+      ,openImportBackupMerge: 'Mesclar backup: combina os dados de um arquivo de backup com o banco atual sem sobrescrever registros existentes.'
+      ,restoreLastBackup: 'Restaurar último backup: recupera automaticamente o backup mais recente armazenado pelo sistema.'
+      ,saveToServer: 'Salvar no servidor: envia o banco de dados atual para o armazenamento remoto (nuvem).'
+      ,loadFromServerReplace: 'Carregar do servidor: substitui o banco de dados local pelo que está armazenado no servidor.'
+    };
+    /**
+     * Exibe uma janela de ajuda com base na chave fornecida.  Usa elementos
+     * preexistentes #helpOverlay e #helpModal.  Se o texto não for encontrado,
+     * não exibe nada.
+     * @param {string} key
+     */
+    function showHelp(key){
+      try{
+        const msg = HELP_TEXTS[key] || '';
+        const overlay = document.getElementById('helpOverlay');
+        const modal   = document.getElementById('helpModal');
+        if(!msg || !overlay || !modal) return;
+        const content = modal.querySelector('.help-content');
+        if(content) content.textContent = msg;
+        // Ajusta dinamicamente as cores do modal conforme o tema atual. Lê as
+        // variáveis definidas em :root (como --panel, --text e --border) para
+        // definir a cor de fundo, texto e borda da janela de ajuda. Caso não
+        // encontre as variáveis, recorre a valores padrão para garantir
+        // contraste adequado em qualquer tema.
+        try{
+          const rootStyles = getComputedStyle(document.documentElement);
+          const panelColor = rootStyles.getPropertyValue('--panel') || '';
+          const textColor  = rootStyles.getPropertyValue('--text')  || '';
+          const borderCol  = rootStyles.getPropertyValue('--border')|| '';
+          if(panelColor) modal.style.background = panelColor.trim();
+          if(textColor)  modal.style.color      = textColor.trim();
+          if(borderCol)  modal.style.borderColor= borderCol.trim();
+        }catch(_e){ /* ignore theme errors */ }
+        overlay.style.display = 'block';
+        modal.style.display = 'block';
+      }catch(e){ console.warn('showHelp error', e); }
+    }
+    /**
+     * Oculta a janela de ajuda.
+     */
+    function hideHelp(){
+      try{
+        const overlay = document.getElementById('helpOverlay');
+        const modal   = document.getElementById('helpModal');
+        if(overlay) overlay.style.display = 'none';
+        if(modal) modal.style.display = 'none';
+      }catch(e){ console.warn('hideHelp error', e); }
+    }
+
+    // Exponha as funções de ajuda no escopo global. Alguns handlers no HTML
+    // utilizam `onclick="showHelp('algo')"`. Sem essa atribuição as
+    // funções estariam encapsuladas no escopo local do script e não
+    // seriam acessíveis a partir dos atributos inline. Ao anexá-las a
+    // `window` garantimos que esses handlers funcionem corretamente.
+    window.showHelp = showHelp;
+    window.hideHelp = hideHelp;
+    /**
+     * Alterna a visibilidade do campo de imposto manual conforme o regime.
+     * Quando selecionado "outro", o campo é exibido, caso contrário ocultado.
+     */
+    function onContabRegimeChange(val){
+      try{
+        const manual = document.getElementById('contabImpostoManual');
+        if(!manual) return;
+        manual.style.display = (val === 'outro') ? '' : 'none';
+      }catch(e){ console.warn('onContabRegimeChange error', e); }
+    }
+    /**
+     * Abre o painel de contabilidade completa e oculta o resultado simples.
+     */
+    function abrirContabCompleta(){
+      try{
+        const card = document.getElementById('contabCompleta');
+        if(!card) return;
+        card.style.display = (card.style.display === 'none' || card.style.display === '') ? 'block' : 'none';
+        // Reset resultado
+        const res = document.getElementById('contabCompletaResultado');
+        if(res) res.innerHTML = '';
+        // Definir datas padrão: mês atual
+        const ini = document.getElementById('contabInicio');
+        const fim = document.getElementById('contabFim');
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = String(now.getMonth()+1).padStart(2,'0');
+        if(ini && !ini.value) ini.value = `${y}-${m}-01`;
+        if(fim && !fim.value){
+          const lastDay = new Date(y, now.getMonth()+1, 0).getDate();
+          fim.value = `${y}-${m}-${String(lastDay).padStart(2,'0')}`;
+        }
+      }catch(e){ console.warn('abrirContabCompleta error', e); }
+    }
+    /**
+     * Fecha o painel de contabilidade completa.
+     */
+    function fecharMinhaContab(){
+      try{
+        const card = document.getElementById('contabCompleta');
+        if(card) card.style.display = 'none';
+      }catch(e){ console.warn('fecharMinhaContab error', e); }
+    }
+    /**
+     * Calcula o resumo da contabilidade completa com base no período e campos extras.
+     * O resultado é exibido dentro de #contabCompletaResultado.
+     */
+    function calcularMinhaContab(){
+      try{
+        const iniVal = document.getElementById('contabInicio')?.value;
+        const fimVal = document.getElementById('contabFim')?.value;
+        if(!iniVal || !fimVal){
+          toast('Informe as datas de início e fim.', 'warn');
+          return;
+        }
+        const start = new Date(iniVal);
+        // Inclusivo: adiciona 1 dia ao fim para facilitar comparações < end
+        let endDate = new Date(fimVal);
+        endDate = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate() + 1);
+        const startTime = start.getTime();
+        const endTime = endDate.getTime();
+        let entradasNaoVendas = 0;
+        let saidas = 0;
+        // percorre caixa
+        (db.caixa || []).forEach(rec => {
+          if(!rec || !rec.data) return;
+          let d;
+          try{ d = parseDateStr(rec.data) || new Date(rec.data); }catch(_){ d = null; }
+          if(!d || isNaN(d.getTime())) return;
+          const t = d.getTime();
+          if(t < startTime || t >= endTime) return;
+          const val = Number(rec.valor_c) || 0;
+          const cat = String(rec.categoria || '').toLowerCase();
+          if(val >= 0){
+            if(cat !== 'venda'){
+              entradasNaoVendas += val;
+            }
+          } else {
+            saidas += Math.abs(val);
+          }
+        });
+        // Vendas
+        let vendasTotal = 0;
+        let lucroTotal = 0;
+        (db.vendas || []).forEach(v => {
+          if(!v || v.cancelada) return;
+          let d;
+          if(v.dataIso){ try{ d = new Date(v.dataIso); }catch(_){ d = null; } }
+          if(!d && v.data){ try{ d = new Date(v.data); }catch(_){ d = null; } }
+          if(!d || isNaN(d.getTime())) return;
+          const t = d.getTime();
+          if(t < startTime || t >= endTime) return;
+          const tot = Number(v.total_c) || 0;
+          vendasTotal += tot;
+          if(typeof v.lucro_c === 'number'){
+            lucroTotal += Number(v.lucro_c) || 0;
+          } else {
+            lucroTotal += tot - (Number(v.servico_c) || 0);
+          }
+        });
+        // Despesas fixas: calcula diferença em meses (ex: end no primeiro dia do próximo mês)
+        let totalDespesasFixasPeriod_c = 0;
+        try{
+          const monthsDiff = (endDate.getFullYear() - start.getFullYear()) * 12 + (endDate.getMonth() - start.getMonth());
+          const meses = Math.max(1, monthsDiff);
+          (db.despesas || []).forEach(d => {
+            const v = Number(d.valor_c) || 0;
+            totalDespesasFixasPeriod_c += v * meses;
+          });
+        }catch(_e){}
+        // Extras
+        const extraDespesas = parseMoneyToCents(document.getElementById('contabExtraDespesas')?.value);
+        const prolabore = parseMoneyToCents(document.getElementById('contabProlabore')?.value);
+        const outrasReceitas = parseMoneyToCents(document.getElementById('contabOutrasReceitas')?.value);
+        const regime = document.getElementById('contabRegime')?.value || 'simples';
+        const impostoManual = parseMoneyToCents(document.getElementById('contabImpostoManual')?.value);
+        // Receita total
+        const receitaTotal = vendasTotal + entradasNaoVendas + outrasReceitas;
+        // Despesas totais
+        const despesasTotal = saidas + totalDespesasFixasPeriod_c + extraDespesas + prolabore;
+        const lucroBruto = receitaTotal - despesasTotal;
+        let impostoEstimado = 0;
+        if(regime === 'simples'){
+          impostoEstimado = Math.round(receitaTotal * 0.06);
+        } else if(regime === 'mei'){
+          impostoEstimado = Math.round(receitaTotal * 0.03);
+        } else {
+          impostoEstimado = impostoManual;
+        }
+        const lucroLiquido = lucroBruto - impostoEstimado;
+        const obs = sanitizeInputString(document.getElementById('contabObs')?.value || '');
+        // Monta HTML para exibição
+        let out = '';
+        out += '<div><b>Receita Total:</b> R$ ' + centsToBR(receitaTotal) + '</div>';
+        out += '<div><b>Despesas Totais:</b> R$ ' + centsToBR(despesasTotal) + '</div>';
+        out += '<div><b>Lucro Bruto:</b> R$ ' + centsToBR(lucroBruto) + '</div>';
+        out += '<div><b>Imposto Estimado (' + escapeHTML(regime) + '):</b> R$ ' + centsToBR(impostoEstimado) + '</div>';
+        out += '<div><b>Lucro Líquido:</b> R$ ' + centsToBR(lucroLiquido) + '</div>';
+        out += '<div><b>Período:</b> ' + start.toLocaleDateString('pt-BR') + ' a ' + new Date(endDate.getTime() - 1).toLocaleDateString('pt-BR') + '</div>';
+        if(obs) out += '<div><b>Observações:</b> ' + escapeHTML(obs) + '</div>';
+        const dest = document.getElementById('contabCompletaResultado');
+        if(dest) dest.innerHTML = out;
+      }catch(e){ console.warn('calcularMinhaContab error', e); }
+    }
+    /**
+     * Gera um PDF contendo o relatório de contabilidade completa, incluindo
+     * identificação do contribuinte, resumo financeiro e anexos com os
+     * lançamentos do caixa e vendas do período. Usa jsPDF e autoTable para
+     * tabular as informações. O PDF é aberto em nova aba ou baixado como
+     * fallback quando o pop-up é bloqueado.
+     */
+    function gerarMinhaContabPDF(){
+      try{
+        // Assegurar que jsPDF esteja disponível
+        if(!window.jspdf || !window.jspdf.jsPDF){
+          toast('Biblioteca de PDF não carregada.', 'warn');
+          return;
+        }
+        // Recalcula os valores para garantir que estejam atualizados
+        calcularMinhaContab();
+        const iniVal = document.getElementById('contabInicio')?.value;
+        const fimVal = document.getElementById('contabFim')?.value;
+        if(!iniVal || !fimVal){
+          toast('Informe as datas de início e fim.', 'warn');
+          return;
+        }
+        const start = new Date(iniVal);
+        let endDate = new Date(fimVal);
+        endDate = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate() + 1);
+        const startTime = start.getTime();
+        const endTime = endDate.getTime();
+        const obs = sanitizeInputString(document.getElementById('contabObs')?.value || '');
+        // Coleta extras para cálculo
+        const extraDespesas = parseMoneyToCents(document.getElementById('contabExtraDespesas')?.value);
+        const prolabore = parseMoneyToCents(document.getElementById('contabProlabore')?.value);
+        const outrasReceitas = parseMoneyToCents(document.getElementById('contabOutrasReceitas')?.value);
+        const regime = document.getElementById('contabRegime')?.value || 'simples';
+        const impostoManual = parseMoneyToCents(document.getElementById('contabImpostoManual')?.value);
+        // Reutiliza cálculos de vendas e caixa
+        let entradasNaoVendas = 0;
+        let saidas = 0;
+        (db.caixa || []).forEach(rec => {
+          if(!rec || !rec.data) return;
+          let d;
+          try{ d = parseDateStr(rec.data) || new Date(rec.data); }catch(_){ d = null; }
+          if(!d || isNaN(d.getTime())) return;
+          const t = d.getTime();
+          if(t < startTime || t >= endTime) return;
+          const val = Number(rec.valor_c) || 0;
+          const cat = String(rec.categoria || '').toLowerCase();
+          if(val >= 0){
+            if(cat !== 'venda'){
+              entradasNaoVendas += val;
+            }
+          } else {
+            saidas += Math.abs(val);
+          }
+        });
+        let vendasTotal = 0;
+        let lucroTotal = 0;
+        // Prepare detalhes de vendas para o anexo
+        const vendasRows = [];
+        (db.vendas || []).forEach(v => {
+          if(!v || v.cancelada) return;
+          let d;
+          if(v.dataIso){ try{ d = new Date(v.dataIso); }catch(_){ d = null; } }
+          if(!d && v.data){ try{ d = new Date(v.data); }catch(_){ d = null; } }
+          if(!d || isNaN(d.getTime())) return;
+          const t = d.getTime();
+          if(t < startTime || t >= endTime) return;
+          const dataStr = d.toLocaleDateString('pt-BR');
+          const tot = Number(v.total_c) || 0;
+          vendasTotal += tot;
+          if(typeof v.lucro_c === 'number'){
+            lucroTotal += Number(v.lucro_c) || 0;
+          } else {
+            lucroTotal += tot - (Number(v.servico_c) || 0);
+          }
+          // Determinar pagamento: tenta a propriedade 'pag' ou 'pagamentos'
+          let pag = '';
+          try{
+            if(Array.isArray(v.pagamentos) && v.pagamentos.length > 0){
+              pag = v.pagamentos.map(p=>p.pag).join(', ');
+            } else if(v.pag) pag = v.pag;
+          }catch(_){}
+          vendasRows.push([dataStr, centsToBR(tot), pag || '']);
+        });
+        // Despesas fixas para período
+        let totalDespesasFixasPeriod_c = 0;
+        try{
+          const monthsDiff = (endDate.getFullYear() - start.getFullYear()) * 12 + (endDate.getMonth() - start.getMonth());
+          const meses = Math.max(1, monthsDiff);
+          (db.despesas || []).forEach(d => {
+            const v = Number(d.valor_c) || 0;
+            totalDespesasFixasPeriod_c += v * meses;
+          });
+        }catch(_){}
+        // Cálculos finais
+        const receitaTotal = vendasTotal + entradasNaoVendas + outrasReceitas;
+        const despesasTotal = saidas + totalDespesasFixasPeriod_c + extraDespesas + prolabore;
+        const lucroBruto = receitaTotal - despesasTotal;
+        let impostoEstimado = 0;
+        if(regime === 'simples'){
+          impostoEstimado = Math.round(receitaTotal * 0.06);
+        } else if(regime === 'mei'){
+          impostoEstimado = Math.round(receitaTotal * 0.03);
+        } else {
+          impostoEstimado = impostoManual;
+        }
+        const lucroLiquido = lucroBruto - impostoEstimado;
+        if(typeof toast === 'function') toast('Gerando PDF…', 'ok');
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        doc.setFontSize(16);
+        doc.text('Relatório de Contabilidade', 10, 14);
+        doc.setFontSize(10);
+        doc.text('Documento de organização interna. Recomenda-se conferência com contador.', 10, 20);
+        // Identificação do contribuinte (linhas em branco)
+        let y = 28;
+        doc.setFontSize(12);
+        doc.text('Identificação do contribuinte (preencha):', 10, y);
+        y += 6;
+        doc.setFontSize(10);
+        doc.text('Nome: _______________________________________________', 10, y); y += 6;
+        doc.text('CPF/CNPJ: ____________________________________________', 10, y); y += 6;
+        doc.text('Endereço: ____________________________________________', 10, y); y += 10;
+        doc.setFontSize(12);
+        doc.text('Período:', 10, y);
+        doc.setFontSize(10);
+        doc.text(start.toLocaleDateString('pt-BR') + ' a ' + new Date(endDate.getTime()-1).toLocaleDateString('pt-BR'), 30, y);
+        y += 8;
+        // Resumo financeiro
+        doc.setFontSize(12);
+        doc.text('Resumo financeiro', 10, y); y += 6;
+        doc.setFontSize(10);
+        const resumoRows = [
+          ['Receita Total', 'R$ ' + centsToBR(receitaTotal)],
+          ['Despesas Totais', 'R$ ' + centsToBR(despesasTotal)],
+          ['Lucro Bruto', 'R$ ' + centsToBR(lucroBruto)],
+          ['Imposto Estimado (' + regime + ')', 'R$ ' + centsToBR(impostoEstimado)],
+          ['Lucro Líquido', 'R$ ' + centsToBR(lucroLiquido)]
+        ];
+        doc.autoTable({
+          head: [['Item','Valor']],
+          body: resumoRows,
+          startY: y,
+          styles:{ fontSize: 8 },
+          headStyles:{ fillColor:[240,240,240] }
+        });
+        y = doc.lastAutoTable ? doc.lastAutoTable.finalY + 8 : y + 20;
+        // Anexo: Movimentos do Caixa
+        doc.setFontSize(12);
+        doc.text('Lançamentos do Caixa', 10, y);
+        y += 6;
+        // Prepara linhas do caixa
+        const caixaRows = [];
+        (db.caixa || []).forEach(rec => {
+          if(!rec || !rec.data) return;
+          let d;
+          try{ d = parseDateStr(rec.data) || new Date(rec.data); }catch(_){ d = null; }
+          if(!d || isNaN(d.getTime())) return;
+          const t = d.getTime();
+          if(t < startTime || t >= endTime) return;
+          const dtStr = d.toLocaleDateString('pt-BR');
+          const cat = String(rec.categoria || '');
+          const tipo = String(rec.tipo || '');
+          const val = Number(rec.valor_c) || 0;
+          const valBR = (val < 0 ? '- R$ ' : 'R$ ') + centsToBR(Math.abs(val));
+          const desc = String(rec.desc || '');
+          const resp = String(rec.responsavel || '');
+          caixaRows.push([dtStr, tipo, cat, valBR, desc, resp]);
+        });
+        doc.autoTable({
+          head: [['Data','Tipo','Categoria','Valor','Descrição','Responsável']],
+          body: caixaRows,
+          startY: y,
+          styles:{ fontSize: 7 },
+          headStyles:{ fillColor:[240,240,240] }
+        });
+        y = doc.lastAutoTable ? doc.lastAutoTable.finalY + 8 : y + 20;
+        // Anexo: Vendas
+        doc.setFontSize(12);
+        doc.text('Vendas', 10, y);
+        y += 6;
+        doc.autoTable({
+          head: [['Data','Total','Pagamento']],
+          body: vendasRows,
+          startY: y,
+          styles:{ fontSize: 7 },
+          headStyles:{ fillColor:[240,240,240] }
+        });
+        y = doc.lastAutoTable ? doc.lastAutoTable.finalY + 8 : y + 20;
+        // Observações
+        if(obs){
+          doc.setFontSize(12);
+          doc.text('Observações', 10, y); y += 6;
+          doc.setFontSize(10);
+          const obsLines = doc.splitTextToSize(obs, 180);
+          doc.text(obsLines, 10, y);
+          y += obsLines.length * 5 + 6;
+        }
+        // Aviso
+        doc.setFontSize(8);
+        doc.text('Documento de organização interna. Recomenda-se conferência com contador.', 10, 287);
+        const blob = doc.output('blob');
+        const url = URL.createObjectURL(blob);
+        let opened = false;
+        try{
+          const win = window.open(url, '_blank');
+          if(win) opened = true;
+        }catch(_){}
+        if(!opened){
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'contabilidade.pdf';
+          a.click();
+        }
+        if(typeof toast === 'function') toast('PDF pronto', 'ok');
+        setTimeout(()=>URL.revokeObjectURL(url), 20000);
+      }catch(err){ console.warn('gerarMinhaContabPDF error', err); if(typeof toast === 'function') toast('Falha ao gerar PDF', 'warn'); }
+    }
+    </script>
 
   <!-- Overlay de bloqueio de licença. Exibido quando o aplicativo não consegue
        verificar a licença por mais de 24 horas de uso offline. -->
@@ -8449,6 +9067,10 @@ setInterval(checkDevedorAlerts, 600000);
     <script src="https://unpkg.com/onscan.js@2.4.0/onscan.min.js"></script>
     <script src="https://unpkg.com/webserial-barcode-scanner/dist/webserial-barcode-scanner.umd.js"></script>
     <script src="https://unpkg.com/@ericblade/quagga2@1.2.6/dist/quagga.min.js"></script>
+    <!-- Biblioteca de geração de PDFs (jsPDF e AutoTable). Carregada via CDN para permitir criação de relatórios em PDF.
+         Caso a conexão falhe, o fallback de impressão em HTML será utilizado. -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
     <!-- ========== Módulo Skan ==========
          Este script substitui o scanner antigo por um módulo unificado que suporta leitores USB (modo teclado),
          scanners em modo serial e leitura por câmera (BarcodeDetector, ZXing e Quagga2). Quando o scanner é
@@ -10022,6 +10644,8 @@ setInterval(checkDevedorAlerts, 600000);
     </script>
     <!-- Multi-tenant authentication module -->
     <script src="./tenant-auth.js"></script>
+    <!-- Módulo de geração de Fluxo de Caixa: implementa a nova funcionalidade de relatório de fluxo de caixa -->
+    <script src="./pdfFluxo.js"></script>
     <!-- Caixa Histórico e Impressão -->
     <script>
     (function(){
@@ -10172,133 +10796,426 @@ setInterval(checkDevedorAlerts, 600000);
       }
       window.deleteCaixa = deleteCaixa;
       function imprimirFluxo(modo){
-        if(!db || !Array.isArray(db.caixa)) return;
-        let start, end, label;
-        // Procuramos as datas de impressão específicas para diário e mensal. Caso não
-        // fornecidas, recorremos aos filtros de início existentes ou à data atual.
-        const filtroInicio = document.getElementById('cx_filter_inicio');
-        if(modo === 'diario'){
-          // Primeiro tenta usar o input dedicado ao dia (cx_print_dia)
-          let dia = '';
-          const inpDia = document.getElementById('cx_print_dia');
-          if(inpDia && inpDia.value){ dia = inpDia.value; }
-          // Se não houver valor no input dedicado, usa o filtro de início da tabela
-          if(!dia && filtroInicio && filtroInicio.value){ dia = filtroInicio.value; }
-          // Se ainda não houver data, usa a data de hoje
-          if(!dia){
-            const now = new Date();
-            const yyyy = now.getFullYear();
-            const mm = String(now.getMonth()+1).padStart(2,'0');
-            const dd = String(now.getDate()).padStart(2,'0');
-            dia = `${yyyy}-${mm}-${dd}`;
-          }
-          start = new Date(dia + 'T00:00:00');
-          end   = new Date(dia + 'T23:59:59');
-          // Monta label no formato DD/MM/YYYY
-          label = dia.split('-').reverse().join('/');
-        } else {
-          // Mensal: tenta usar o input dedicado ao mês (cx_print_mes)
-          let mesVal = '';
-          const inpMes = document.getElementById('cx_print_mes');
-          if(inpMes && inpMes.value){ mesVal = inpMes.value; }
-          // Se não houver valor no input de mês, usa o filtro de início (YYYY-MM-DD) para inferir o mês
-          if(!mesVal && filtroInicio && filtroInicio.value){ mesVal = filtroInicio.value.slice(0,7); }
-          // Se ainda não houver, usa o mês atual
-          if(!mesVal){
-            const now = new Date();
-            const yyyy = now.getFullYear();
-            const mm = String(now.getMonth()+1).padStart(2,'0');
-            mesVal = `${yyyy}-${mm}`;
-          }
-          // mesVal está no formato YYYY-MM; convertemos para Date
-          const parts = mesVal.split('-');
-          const y = parseInt(parts[0],10);
-          const m = parseInt(parts[1],10) - 1;
-          start = new Date(y, m, 1, 0,0,0);
-          end   = new Date(y, m+1, 0, 23,59,59);
-          const monthStr = String(m+1).padStart(2,'0');
-          label = monthStr + '/' + y;
+        // A funcionalidade de impressão de fluxo foi desativada. Retorna imediatamente sem gerar relatório.
+        return;
+        /**
+         * Gera um relatório de fluxo de caixa (diário ou mensal) a partir de
+         * db.caixa. A implementação foi reescrita do zero para corrigir
+         * problemas da versão anterior e tornar o processo mais robusto.
+         * Tenta utilizar jsPDF para gerar um PDF; caso não esteja
+         * disponível, recorre a um documento HTML para impressão ou
+         * download. Ao final, sempre fornece um feedback ao usuário por
+         * meio da função `toast` (quando disponível).
+         *
+         * @param {string} modo Define o tipo de relatório: 'diario' ou 'mensal'.
+         */
+        // Mostra um toast inicial
+        if (typeof toast === 'function') {
+          toast('Gerando relatório...', 'ok');
         }
-        const entries = db.caixa.filter(item=>{
-          const dt = parseDateStr(item.data);
-          return dt && dt >= start && dt <= end;
-        });
-        let totalEntradas = 0;
-        let totalSaidas = 0;
-        let totalVendas = 0;
-        const porResp = {};
-        const porCat  = {};
-        entries.forEach(item=>{
-          const val = Number(item.valor_c) || 0;
-          if(val >= 0) totalEntradas += val; else totalSaidas += val;
-          if(String(item.categoria||'').toLowerCase() === 'venda'){
-            totalVendas += Math.abs(val);
+        try {
+          // Copia os lançamentos do caixa. Se db ou db.caixa não existir,
+          // usa um array vazio para evitar erros.
+          const caixaArr = (db && Array.isArray(db.caixa)) ? db.caixa.slice() : [];
+          let start, end, label;
+          const filtroInicio = document.getElementById('cx_filter_inicio');
+          // Determina o período de acordo com o modo selecionado.
+          if (modo === 'diario') {
+            let dia = '';
+            const inpDia = document.getElementById('cx_print_dia');
+            if (inpDia && inpDia.value) {
+              dia = inpDia.value;
+            } else if (filtroInicio && filtroInicio.value) {
+              dia = filtroInicio.value;
+            } else {
+              const now = new Date();
+              const yyyy = now.getFullYear();
+              const mm = String(now.getMonth() + 1).padStart(2, '0');
+              const dd = String(now.getDate()).padStart(2, '0');
+              dia = `${yyyy}-${mm}-${dd}`;
+            }
+            start = new Date(`${dia}T00:00:00`);
+            end   = new Date(`${dia}T23:59:59`);
+            label = dia.split('-').reverse().join('/');
+          } else {
+            let mesVal = '';
+            const inpMes = document.getElementById('cx_print_mes');
+            if (inpMes && inpMes.value) {
+              mesVal = inpMes.value;
+            } else if (filtroInicio && filtroInicio.value) {
+              mesVal = filtroInicio.value.slice(0, 7);
+            } else {
+              const now = new Date();
+              const yyyy = now.getFullYear();
+              const mm = String(now.getMonth() + 1).padStart(2, '0');
+              mesVal = `${yyyy}-${mm}`;
+            }
+            const [yStr, mStr] = mesVal.split('-');
+            const y = parseInt(yStr, 10);
+            const m = parseInt(mStr, 10) - 1;
+            start = new Date(y, m, 1, 0, 0, 0);
+            end   = new Date(y, m + 1, 0, 23, 59, 59);
+            label = `${String(m + 1).padStart(2, '0')}/${y}`;
           }
-          const resp = String(item.responsavel||'Desconhecido');
-          porResp[resp] = (porResp[resp] || 0) + val;
-          const cat = String(item.categoria||'Sem categoria');
-          porCat[cat] = (porCat[cat] || 0) + val;
-        });
-        const saldo = totalEntradas + totalSaidas;
-        let html = '<h2 style="margin:0 0 10px 0;">Relatório de Fluxo ' + (modo === 'diario' ? 'Diário' : 'Mensal') + '</h2>';
-        html += '<p>Período: ' + label + '</p>';
-        html += '<p>Total Entradas: R$ ' + (typeof centsToBR === 'function' ? centsToBR(totalEntradas) : (totalEntradas/100).toFixed(2)) + '<br>';
-        html += 'Total Saídas: R$ ' + (typeof centsToBR === 'function' ? centsToBR(Math.abs(totalSaidas)) : (Math.abs(totalSaidas)/100).toFixed(2)) + '<br>';
-        html += 'Saldo: R$ ' + (typeof centsToBR === 'function' ? centsToBR(saldo) : (saldo/100).toFixed(2)) + '<br>';
-        html += 'Total Vendas: R$ ' + (typeof centsToBR === 'function' ? centsToBR(totalVendas) : (totalVendas/100).toFixed(2)) + '</p>';
-        html += '<table style="border-collapse:collapse; width:100%; margin-top:10px; font-size:12px;">';
-        html += '<thead><tr style="background:#f0f0f0;"><th style="border:1px solid #999;padding:4px;">Data/Hora</th><th style="border:1px solid #999;padding:4px;">Tipo</th><th style="border:1px solid #999;padding:4px;">Categoria</th><th style="border:1px solid #999;padding:4px;">Valor</th><th style="border:1px solid #999;padding:4px;">Descrição</th><th style="border:1px solid #999;padding:4px;">Pagamento</th><th style="border:1px solid #999;padding:4px;">Responsável</th></tr></thead><tbody>';
-        entries.sort((a,b)=>{
-          const da = parseDateStr(a.data) || 0;
-          const dbb= parseDateStr(b.data) || 0;
-          return da - dbb;
-        }).forEach(item=>{
-          const dt = parseDateStr(item.data);
-          const dateStr = dt ? dt.toLocaleString('pt-BR') : (item.data||'');
-          const val = Number(item.valor_c) || 0;
-          const valBR = typeof centsToBR === 'function' ? centsToBR(Math.abs(val)) : (Math.abs(val)/100).toFixed(2);
-          html += '<tr>';
-          html += '<td style="border:1px solid #999;padding:4px;">' + dateStr + '</td>';
-          html += '<td style="border:1px solid #999;padding:4px;">' + (item.tipo||'') + '</td>';
-          html += '<td style="border:1px solid #999;padding:4px;">' + (item.categoria||'') + '</td>';
-          html += '<td style="border:1px solid #999;padding:4px;text-align:right;">' + (val<0 ? '- R$ ' : 'R$ ') + valBR + '</td>';
-          html += '<td style="border:1px solid #999;padding:4px;">' + (item.desc||'') + '</td>';
-          html += '<td style="border:1px solid #999;padding:4px;">' + (item.pag||'') + '</td>';
-          html += '<td style="border:1px solid #999;padding:4px;">' + (item.responsavel||'') + '</td>';
-          html += '</tr>';
-        });
-        html += '</tbody></table>';
-        html += '<h3 style="margin-top:12px;">Totais por Responsável</h3>';
-        html += '<table style="border-collapse:collapse; width:100%; font-size:12px;"><thead><tr style="background:#f0f0f0;"><th style="border:1px solid #999;padding:4px;">Responsável</th><th style="border:1px solid #999;padding:4px;">Valor</th></tr></thead><tbody>';
-        Object.keys(porResp).forEach(resp=>{
-          const val = porResp[resp];
-          const valBR = typeof centsToBR === 'function' ? centsToBR(Math.abs(val)) : (Math.abs(val)/100).toFixed(2);
-          html += '<tr><td style="border:1px solid #999;padding:4px;">' + resp + '</td><td style="border:1px solid #999;padding:4px;text-align:right;">' + (val<0 ? '- R$ ' : 'R$ ') + valBR + '</td></tr>';
-        });
-        html += '</tbody></table>';
-        html += '<h3 style="margin-top:12px;">Totais por Categoria</h3>';
-        html += '<table style="border-collapse:collapse; width:100%; font-size:12px;"><thead><tr style="background:#f0f0f0;"><th style="border:1px solid #999;padding:4px;">Categoria</th><th style="border:1px solid #999;padding:4px;">Valor</th></tr></thead><tbody>';
-        Object.keys(porCat).forEach(cat=>{
-          const val = porCat[cat];
-          const valBR = typeof centsToBR === 'function' ? centsToBR(Math.abs(val)) : (Math.abs(val)/100).toFixed(2);
-          html += '<tr><td style="border:1px solid #999;padding:4px;">' + cat + '</td><td style="border:1px solid #999;padding:4px;text-align:right;">' + (val<0 ? '- R$ ' : 'R$ ') + valBR + '</td></tr>';
-        });
-        html += '</tbody></table>';
-        html += '<p style="font-size:10px; margin-top:10px;">Gerado em ' + (new Date().toLocaleString('pt-BR')) + '</p>';
-        const w = window.open('', '_blank');
-        if(!w){
-          alert('Não foi possível abrir a janela de impressão. Verifique o bloqueador de pop-up.');
-          return;
+          // Filtra os lançamentos dentro do período
+          const entries = caixaArr.filter(item => {
+            const dt = parseDateStr(item.data);
+            return dt && dt >= start && dt <= end;
+          });
+          // Calcula totais
+          let totalEntradas = 0;
+          let totalSaidas   = 0;
+          let totalVendas   = 0;
+          const porResp = {};
+          const porCat  = {};
+          for (const item of entries) {
+            const val = Number(item.valor_c) || 0;
+            if (val >= 0) {
+              totalEntradas += val;
+            } else {
+              totalSaidas   += val;
+            }
+            if (String(item.categoria || '').toLowerCase() === 'venda') {
+              totalVendas += Math.abs(val);
+            }
+            const resp = String(item.responsavel || 'Desconhecido');
+            porResp[resp] = (porResp[resp] || 0) + val;
+            const cat = String(item.categoria || 'Sem categoria');
+            porCat[cat] = (porCat[cat] || 0) + val;
+          }
+          const saldo = totalEntradas + totalSaidas;
+          // Função auxiliar para formatar valores em BRL
+          const fmt = (v, prefix = true) => {
+            const valAbs = Math.abs(v);
+            const num = (typeof centsToBR === 'function')
+              ? centsToBR(valAbs)
+              : (valAbs / 100).toFixed(2);
+            const sign = v < 0 ? '- R$ ' : 'R$ ';
+            return prefix ? (sign + num) : num;
+          };
+          // Nome da empresa (se existir)
+          const empresaNome = (db && db.empresa && typeof db.empresa.nome === 'string' && db.empresa.nome.trim())
+            ? db.empresa.nome.trim()
+            : '';
+          // Construção do HTML do relatório
+          let reportHtml = '';
+          reportHtml += `<h2 style="margin:0 0 10px 0;">Fluxo de Caixa ${modo === 'diario' ? 'Diário' : 'Mensal'}</h2>`;
+          if (empresaNome) {
+            reportHtml += `<p style="margin:0 0 4px 0;"><strong>${empresaNome}</strong></p>`;
+          }
+          reportHtml += `<p style="margin:0 0 4px 0;">Período: ${label}</p>`;
+          reportHtml += `<p style="margin:0 0 4px 0;">Total Entradas: ${fmt(totalEntradas)}</p>`;
+          reportHtml += `<p style="margin:0 0 4px 0;">Total Saídas: ${fmt(totalSaidas)}</p>`;
+          reportHtml += `<p style="margin:0 0 4px 0;">Saldo: ${fmt(saldo)}</p>`;
+          reportHtml += `<p style="margin:0 0 10px 0;">Total Vendas: ${fmt(totalVendas)}</p>`;
+          if (entries.length === 0) {
+            reportHtml += `<p style="margin-top:10px;">Sem movimentações no período.</p>`;
+          } else {
+            reportHtml += `<table style="border-collapse:collapse; width:100%; margin-top:4px; font-size:12px;">`;
+            reportHtml += `<thead><tr style="background:#f0f0f0;"><th style="border:1px solid #999;padding:4px;">Data/Hora</th><th style="border:1px solid #999;padding:4px;">Tipo</th><th style="border:1px solid #999;padding:4px;">Categoria</th><th style="border:1px solid #999;padding:4px;">Valor</th><th style="border:1px solid #999;padding:4px;">Descrição</th><th style="border:1px solid #999;padding:4px;">Pagamento</th><th style="border:1px solid #999;padding:4px;">Responsável</th></tr></thead><tbody>`;
+            entries.sort((a, b) => {
+              const da = parseDateStr(a.data) || 0;
+              const dbb = parseDateStr(b.data) || 0;
+              return da - dbb;
+            }).forEach(item => {
+              const dt = parseDateStr(item.data);
+              const dateStr = dt ? dt.toLocaleString('pt-BR') : (item.data || '');
+              const val = Number(item.valor_c) || 0;
+              const valStr = fmt(val);
+              reportHtml += `<tr>`;
+              reportHtml += `<td style="border:1px solid #999;padding:4px;">${dateStr}</td>`;
+              reportHtml += `<td style="border:1px solid #999;padding:4px;">${item.tipo || ''}</td>`;
+              reportHtml += `<td style="border:1px solid #999;padding:4px;">${item.categoria || ''}</td>`;
+              reportHtml += `<td style="border:1px solid #999;padding:4px;text-align:right;">${valStr}</td>`;
+              reportHtml += `<td style="border:1px solid #999;padding:4px;">${item.desc || ''}</td>`;
+              reportHtml += `<td style="border:1px solid #999;padding:4px;">${item.pag || ''}</td>`;
+              reportHtml += `<td style="border:1px solid #999;padding:4px;">${item.responsavel || ''}</td>`;
+              reportHtml += `</tr>`;
+            });
+            reportHtml += `</tbody></table>`;
+            // Totais por responsável
+            reportHtml += `<h3 style="margin-top:12px;">Totais por Responsável</h3>`;
+            reportHtml += `<table style="border-collapse:collapse; width:100%; font-size:12px;">`;
+            reportHtml += `<thead><tr style="background:#f0f0f0;"><th style="border:1px solid #999;padding:4px;">Responsável</th><th style="border:1px solid #999;padding:4px;">Valor</th></tr></thead><tbody>`;
+            Object.keys(porResp).forEach(resp => {
+              const val = porResp[resp];
+              const valStr = fmt(val);
+              reportHtml += `<tr><td style="border:1px solid #999;padding:4px;">${resp}</td><td style="border:1px solid #999;padding:4px;text-align:right;">${valStr}</td></tr>`;
+            });
+            reportHtml += `</tbody></table>`;
+            // Totais por categoria
+            reportHtml += `<h3 style="margin-top:12px;">Totais por Categoria</h3>`;
+            reportHtml += `<table style="border-collapse:collapse; width:100%; font-size:12px;">`;
+            reportHtml += `<thead><tr style="background:#f0f0f0;"><th style="border:1px solid #999;padding:4px;">Categoria</th><th style="border:1px solid #999;padding:4px;">Valor</th></tr></thead><tbody>`;
+            Object.keys(porCat).forEach(cat => {
+              const val = porCat[cat];
+              const valStr = fmt(val);
+              reportHtml += `<tr><td style="border:1px solid #999;padding:4px;">${cat}</td><td style="border:1px solid #999;padding:4px;text-align:right;">${valStr}</td></tr>`;
+            });
+            reportHtml += `</tbody></table>`;
+          }
+          // Rodapé com data/hora de geração
+          const geradoEm = new Date().toLocaleString('pt-BR');
+          reportHtml += `<p style="font-size:10px; margin-top:10px;">Gerado em ${geradoEm}</p>`;
+          // --- Tenta gerar PDF com jsPDF ---
+          let pdfSucceeded = false;
+          try {
+            if (window.jspdf && window.jspdf.jsPDF) {
+              const { jsPDF } = window.jspdf;
+              const doc = new jsPDF();
+              // Cabeçalho
+              doc.setFontSize(14);
+              doc.text(`Fluxo de Caixa ${modo === 'diario' ? 'Diário' : 'Mensal'}`, 10, 16);
+              doc.setFontSize(10);
+              if (empresaNome) {
+                doc.text(empresaNome, 10, 22);
+              }
+              doc.text(`Período: ${label}`, 10, empresaNome ? 28 : 24);
+              let yOff = empresaNome ? 34 : 30;
+              doc.text(`Total Entradas: ${fmt(totalEntradas)}`, 10, yOff);
+              yOff += 6;
+              doc.text(`Total Saídas: ${fmt(totalSaidas)}`, 10, yOff);
+              yOff += 6;
+              doc.text(`Saldo: ${fmt(saldo)}`, 10, yOff);
+              yOff += 6;
+              doc.text(`Total Vendas: ${fmt(totalVendas)}`, 10, yOff);
+              yOff += 10;
+              // Tabela principal
+              if (entries.length > 0 && typeof doc.autoTable === 'function') {
+                // Usa a biblioteca AutoTable se disponível para uma renderização completa da tabela.
+                const head = [['Data/Hora','Tipo','Categoria','Valor','Descrição','Pagamento','Responsável']];
+                const body = entries.sort((a, b) => {
+                  const da = parseDateStr(a.data) || 0;
+                  const dbb = parseDateStr(b.data) || 0;
+                  return da - dbb;
+                }).map(item => {
+                  const dt = parseDateStr(item.data);
+                  const dateStr = dt ? dt.toLocaleString('pt-BR') : (item.data || '');
+                  const val = Number(item.valor_c) || 0;
+                  const valStr = fmt(val);
+                  return [dateStr, (item.tipo || ''), (item.categoria || ''), valStr, (item.desc || ''), (item.pag || ''), (item.responsavel || '')];
+                });
+                doc.autoTable({
+                  head,
+                  body,
+                  startY: yOff,
+                  styles: { fontSize: 7 },
+                  headStyles: { fillColor: [240,240,240] },
+                  margin: { left: 10, right: 10 }
+                });
+                yOff = doc.lastAutoTable ? doc.lastAutoTable.finalY + 8 : yOff + 8;
+                // Totais por responsável
+                doc.setFontSize(12);
+                doc.text('Totais por Responsável', 10, yOff);
+                yOff += 4;
+                const respBody = Object.keys(porResp).map(resp => {
+                  const val = porResp[resp];
+                  const valStr = fmt(val);
+                  return [resp, valStr];
+                });
+                doc.autoTable({
+                  head: [['Responsável','Valor']],
+                  body: respBody,
+                  startY: yOff,
+                  styles: { fontSize: 8 },
+                  headStyles: { fillColor: [240,240,240] },
+                  margin: { left: 10, right: 10 }
+                });
+                yOff = doc.lastAutoTable ? doc.lastAutoTable.finalY + 8 : yOff + 8;
+                // Totais por categoria
+                doc.setFontSize(12);
+                doc.text('Totais por Categoria', 10, yOff);
+                yOff += 4;
+                const catBody = Object.keys(porCat).map(cat => {
+                  const val = porCat[cat];
+                  const valStr = fmt(val);
+                  return [cat, valStr];
+                });
+                doc.autoTable({
+                  head: [['Categoria','Valor']],
+                  body: catBody,
+                  startY: yOff,
+                  styles: { fontSize: 8 },
+                  headStyles: { fillColor: [240,240,240] },
+                  margin: { left: 10, right: 10 }
+                });
+                yOff = doc.lastAutoTable ? doc.lastAutoTable.finalY + 10 : yOff + 10;
+              } else if (entries.length > 0) {
+                // Fallback manual: desenha uma tabela simples quando AutoTable não está disponível.
+                doc.setFontSize(9);
+                // Define a largura das colunas. A soma deve ser menor que a largura da página (210mm) com margens.
+                const colWidths = [30, 20, 25, 20, 55, 25, 25];
+                const headers = ['Data/Hora', 'Tipo', 'Categoria', 'Valor', 'Descrição', 'Pagamento', 'Responsável'];
+                let y = yOff;
+                // Cabeçalho da tabela
+                let x = 10;
+                headers.forEach((h, idx) => {
+                  doc.text(String(h), x, y);
+                  x += colWidths[idx];
+                });
+                y += 5;
+                // Ordena as entradas cronologicamente
+                const sorted = entries.slice().sort((a, b) => {
+                  const da = parseDateStr(a.data) || 0;
+                  const dbb = parseDateStr(b.data) || 0;
+                  return da - dbb;
+                });
+                sorted.forEach(item => {
+                  const dt = parseDateStr(item.data);
+                  const dateStr = dt ? dt.toLocaleString('pt-BR') : (item.data || '');
+                  const val = Number(item.valor_c) || 0;
+                  const valStr = fmt(val);
+                  const row = [dateStr, (item.tipo || ''), (item.categoria || ''), valStr, (item.desc || ''), (item.pag || ''), (item.responsavel || '')];
+                  // Quebra o texto em múltiplas linhas se exceder a largura da coluna
+                  let maxLines = 1;
+                  const cellLines = row.map((text, idx) => {
+                    const lines = doc.splitTextToSize(String(text), colWidths[idx] - 1);
+                    if (lines.length > maxLines) maxLines = lines.length;
+                    return lines;
+                  });
+                  // Verifica se há espaço suficiente na página; se não, cria nova página e reimprime cabeçalho
+                  if (y + maxLines * 4 > 285) {
+                    doc.addPage();
+                    y = 10;
+                    // Repete cabeçalho na nova página
+                    x = 10;
+                    headers.forEach((h, idx) => {
+                      doc.text(String(h), x, y);
+                      x += colWidths[idx];
+                    });
+                    y += 5;
+                  }
+                  // Imprime cada linha de texto
+                  for (let lineIndex = 0; lineIndex < maxLines; lineIndex++) {
+                    x = 10;
+                    cellLines.forEach((lines, idx) => {
+                      const t = lines[lineIndex] || '';
+                      doc.text(String(t), x, y + lineIndex * 4);
+                      x += colWidths[idx];
+                    });
+                  }
+                  y += maxLines * 4;
+                });
+                // Ajusta yOff para após a tabela
+                yOff = y + 4;
+                // Totais por responsável (manual)
+                doc.setFontSize(10);
+                doc.text('Totais por Responsável', 10, yOff);
+                yOff += 5;
+                doc.setFontSize(9);
+                Object.keys(porResp).forEach(resp => {
+                  const val = porResp[resp];
+                  const valStr = fmt(val);
+                  if (yOff > 285) { doc.addPage(); yOff = 10; }
+                  doc.text(`${resp}: ${valStr}`, 10, yOff);
+                  yOff += 4;
+                });
+                yOff += 4;
+                // Totais por categoria (manual)
+                doc.setFontSize(10);
+                doc.text('Totais por Categoria', 10, yOff);
+                yOff += 5;
+                doc.setFontSize(9);
+                Object.keys(porCat).forEach(cat => {
+                  const val = porCat[cat];
+                  const valStr = fmt(val);
+                  if (yOff > 285) { doc.addPage(); yOff = 10; }
+                  doc.text(`${cat}: ${valStr}`, 10, yOff);
+                  yOff += 4;
+                });
+                // Avança um pouco após imprimir as tabelas
+                yOff += 2;
+              }
+              doc.setFontSize(8);
+              doc.text(`Gerado em ${geradoEm}`, 10, yOff);
+              const blob = doc.output('blob');
+              const url = URL.createObjectURL(blob);
+              let opened = false;
+              try {
+                const newWin = window.open(url, '_blank');
+                if (newWin) opened = true;
+              } catch (_err) {
+                opened = false;
+              }
+              if (!opened) {
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `fluxo_${modo}_${label.replace(/[\\/]/g,'-')}.pdf`;
+                link.click();
+              }
+              pdfSucceeded = true;
+              if (typeof toast === 'function') {
+                toast('PDF pronto', 'ok');
+              }
+              setTimeout(() => URL.revokeObjectURL(url), 20000);
+            }
+          } catch (err) {
+            console.warn('Erro ao gerar PDF', err);
+          }
+          // Fallback para HTML: se PDF não foi gerado ou jsPDF não estiver disponível
+          if (!pdfSucceeded) {
+            // Envolve o relatório em um documento HTML completo
+            const htmlDoc = `
+              <html lang="pt-br">
+                <head>
+                  <meta charset="utf-8" />
+                  <meta name="viewport" content="width=device-width, initial-scale=1" />
+                  <title>Relatório de Fluxo</title>
+                  <style>
+                    body{ font-family: Arial, sans-serif; background:#fff; color:#000; margin:20px; }
+                    h2,h3{ margin:0 0 10px 0; }
+                    table{ width:100%; border-collapse:collapse; margin-top:4px; }
+                    th, td{ border:1px solid #999; padding:4px; font-size:12px; }
+                    thead{ background:#f0f0f0; }
+                  </style>
+                </head>
+                <body>${reportHtml}</body>
+              </html>
+            `;
+            let openedHtml = false;
+            try {
+              const newWin = window.open('', '_blank', 'noopener,noreferrer');
+              if (newWin) {
+                newWin.document.open();
+                newWin.document.write(htmlDoc);
+                newWin.document.close();
+                // Tenta acionar a impressão automaticamente
+                newWin.onload = () => { try { newWin.print(); } catch(_err){} };
+                openedHtml = true;
+              }
+            } catch (_err) {
+              openedHtml = false;
+            }
+            if (!openedHtml) {
+              // Se o pop-up estiver bloqueado, cria um Blob para download
+              const blobHtml = new Blob([htmlDoc], { type: 'text/html' });
+              const htmlUrl  = URL.createObjectURL(blobHtml);
+              const link2 = document.createElement('a');
+              link2.href = htmlUrl;
+              link2.download = `fluxo_${modo}_${label.replace(/[\\/]/g,'-')}.html`;
+              link2.click();
+              setTimeout(() => URL.revokeObjectURL(htmlUrl), 20000);
+            }
+            if (typeof toast === 'function') {
+              toast('Relatório pronto', 'ok');
+            }
+          }
+        } catch (err) {
+          console.error('Erro no processo de geração de relatório', err);
+          if (typeof toast === 'function') {
+            toast('Falha ao gerar relatório: ' + (err && err.message ? err.message : ''), 'warn');
+          }
         }
-        w.document.write('<html><head><title>Relatório de Fluxo</title><style>body{font-family:Arial,sans-serif;color:#000;background:#fff;margin:20px;} h2,h3{margin:0 0 10px 0;} table{width:100%; border-collapse:collapse; margin-top:4px;} th, td{border:1px solid #999;padding:4px;font-size:12px;} thead{background:#f0f0f0;} </style></head><body>' + html + '</body></html>');
-        w.document.close();
-        // Aguarda um pequeno intervalo para garantir que o conteúdo seja renderizado
-        setTimeout(function(){
-          try{ w.print(); }catch(_e){}
-          try{ w.close(); }catch(_e){}
-        }, 200);
       }
-      window.imprimirFluxo = imprimirFluxo;
+      // window.imprimirFluxo = imprimirFluxo; // removido: impressão de fluxo desativada
+
+      // Delegação de eventos: garante que os botões de impressão do fluxo
+      // acionem a função correta mesmo que o markup seja atualizado ou que os
+      // atributos ``onclick`` não funcionem em alguns navegadores ou modos.
+      // O listener é adicionado apenas uma vez (IIFE) e utiliza `closest` para
+      // capturar cliques em botões com ids específicos.  Se o botão for o
+      // diário ou o mensal, interrompe o comportamento padrão e chama
+      // Manipuladores de clique e vinculação de botões de impressão do fluxo removidos
       // ===== Função para ajuste rápido de quantidade na venda rápida =====
       function changeQuickQty(delta){
         try{
