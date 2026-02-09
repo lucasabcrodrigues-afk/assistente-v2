@@ -1052,7 +1052,7 @@ body.mobile-mode #bottomNav button{
              continua como "button" para evitar submissão de formulários. -->
         <button id="skan_estoque_btn" type="button" onclick="toggleSkan('estoque')" style="padding:8px 10px; border-radius:8px;">📷 Scanner</button>
       </div>
-      <div class="grid">
+        <div class="grid">
         <input id="e_cod" placeholder="Código" />
         <input id="e_nome" placeholder="Nome" />
         <input id="e_qtd" type="number" placeholder="Qtd" min="0" step="1" />
@@ -1061,7 +1061,12 @@ body.mobile-mode #bottomNav button{
         <input id="e_preco" placeholder="Preço (ex: 19,99)" inputmode="decimal" />
         <!-- Campo para definir a porcentagem de lucro desejada. Ao alterar, recalcula automaticamente o preço de venda. -->
         <input id="e_lucro" type="number" placeholder="% lucro" min="0" step="0.01" title="Porcentagem de lucro" />
-      </div>
+        </div>
+        <!-- Botões extras para gerar código interno e imprimir etiqueta -->
+        <div class="flex" style="margin-top:6px; gap:6px; flex-wrap:wrap;">
+          <button type="button" id="btnGerarCodigoInterno" onclick="generateInternalBarcode()">Gerar código (interno)</button>
+          <button type="button" id="btnImprimirEtiqueta" class="ghost" onclick="printEtiqueta()">Imprimir etiqueta</button>
+        </div>
       <!-- Configurações de cálculo de lucro (markup/margem) e arredondamento -->
       <div class="grid" style="margin-top:6px;">
         <select id="profitMode" title="Método de cálculo de preço" onchange="setProfitMode(this.value)">
@@ -1451,8 +1456,14 @@ body.mobile-mode #bottomNav button{
     </div>
     <div class="card">
       <h3>Impressão de Fluxo</h3>
-      <div class="grid" style="margin-bottom:6px;">
+      <!-- Inputs dedicados para seleção de data e mês do fluxo. Colocados lado a lado com os botões
+           para permitir que o operador escolha o dia específico ou o mês antes de imprimir o relatório. -->
+      <div class="grid" style="margin-bottom:6px; gap:6px; align-items:center;">
+        <!-- Seleção de dia para impressão do fluxo diário -->
+        <input type="date" id="cx_print_dia" title="Dia do fluxo diário" style="min-width:140px;" />
         <button onclick="imprimirFluxo('diario')">🖨️ Imprimir Fluxo Diário</button>
+        <!-- Seleção de mês para impressão do fluxo mensal. input type="month" retorna valor YYYY-MM -->
+        <input type="month" id="cx_print_mes" title="Mês do fluxo mensal" style="min-width:140px;" />
         <button onclick="imprimirFluxo('mensal')">🖨️ Imprimir Fluxo Mensal</button>
       </div>
       <div class="small">
@@ -9001,8 +9012,44 @@ setInterval(checkDevedorAlerts, 600000);
             ov.style.flexDirection = 'column';
             ov.style.textAlign = 'center';
             ov.style.padding = '20px';
-            ov.style.fontSize = '28px';
-            ov.textContent = 'O sistema está aberto duas vezes';
+            // Mensagem
+            const p = document.createElement('p');
+            p.textContent = 'O sistema está aberto em outra aba.';
+            p.style.fontSize = '28px';
+            p.style.marginBottom = '20px';
+            ov.appendChild(p);
+            // Botão para fechar a outra aba (assumir a instância atual)
+            const btnCloseOther = document.createElement('button');
+            btnCloseOther.textContent = 'Fechar outra aba';
+            btnCloseOther.style.padding = '12px 24px';
+            btnCloseOther.style.fontSize = '18px';
+            btnCloseOther.style.border = 'none';
+            btnCloseOther.style.borderRadius = '6px';
+            btnCloseOther.style.backgroundColor = '#1a73e8';
+            btnCloseOther.style.color = '#fff';
+            btnCloseOther.style.cursor = 'pointer';
+            btnCloseOther.style.marginBottom = '12px';
+            btnCloseOther.onclick = function(){
+              try{
+                // Assume o controle definindo a chave para este tabId
+                localStorage.setItem(TAB_KEY, tabId);
+                isMaster = true;
+                hideDup();
+              }catch(_e){}
+            };
+            ov.appendChild(btnCloseOther);
+            // Botão para recarregar a página (opcional)
+            const btnReload = document.createElement('button');
+            btnReload.textContent = 'Recarregar';
+            btnReload.style.padding = '12px 24px';
+            btnReload.style.fontSize = '18px';
+            btnReload.style.border = 'none';
+            btnReload.style.borderRadius = '6px';
+            btnReload.style.backgroundColor = '#1a73e8';
+            btnReload.style.color = '#fff';
+            btnReload.style.cursor = 'pointer';
+            btnReload.onclick = function(){ location.reload(); };
+            ov.appendChild(btnReload);
             document.body.appendChild(ov);
           }
           ov.style.display = 'flex';
@@ -9259,6 +9306,116 @@ setInterval(checkDevedorAlerts, 600000);
       }catch(e){ console.warn('Auto reload error', e); }
     })();
 
+</script>
+
+    <!--
+      Controle de Aba Única
+
+      Este script impede que múltiplas instâncias do ERP funcionem simultaneamente. Quando uma nova aba
+      ou janela do ERP é aberta, ela define uma chave única no localStorage. As abas antigas escutam
+      mudanças nessa chave via evento "storage" e, ao detectarem que não são a aba ativa, exibem um
+      overlay informando que foram desativadas. Isso resolve o problema relatado em dispositivos móveis
+      onde o sistema parecia estar aberto duas vezes. Apenas a última aba aberta continua operativa.
+    -->
+    <script>
+    (function(){
+      try{
+        const TAB_KEY = 'ERP_ACTIVE_TAB_ID';
+        // Recupera o identificador desta aba a partir da sessionStorage para persistir durante
+        // recarregamentos. Se não existir, gera um novo ID.
+        let myId = null;
+        try{
+          myId = sessionStorage.getItem('ERP_TAB_ID');
+        }catch(_e){ myId = null; }
+        if(!myId){
+          myId = String(Date.now()) + '_' + Math.random().toString(16).slice(2);
+          try{ sessionStorage.setItem('ERP_TAB_ID', myId); }catch(_e){}
+        }
+        // Define esta aba como ativa
+        try{ localStorage.setItem(TAB_KEY, myId); }catch(_e){}
+        // Escuta alterações na chave; se outra aba se tornar ativa, mostra aviso e desativa esta
+        window.addEventListener('storage', function(e){
+          if(e.key === TAB_KEY){
+            const active = localStorage.getItem(TAB_KEY);
+            if(active && active !== myId){
+              // Exibe overlay de desativação
+              let ov = document.getElementById('dupTabOverlay');
+              if(!ov){
+                ov = document.createElement('div');
+                ov.id = 'dupTabOverlay';
+                ov.style.position = 'fixed';
+                ov.style.top = '0';
+                ov.style.left = '0';
+                ov.style.right = '0';
+                ov.style.bottom = '0';
+                ov.style.display = 'none';
+                ov.style.flexDirection = 'column';
+                ov.style.justifyContent = 'center';
+                ov.style.alignItems = 'center';
+                ov.style.textAlign = 'center';
+                ov.style.zIndex = '99999';
+                // Herda cores do tema para manter consistência
+                const rootStyle = getComputedStyle(document.documentElement);
+                const bg = rootStyle.getPropertyValue('--panel2') || rootStyle.getPropertyValue('--bg') || '#000';
+                const text = rootStyle.getPropertyValue('--text') || '#fff';
+                const primary = rootStyle.getPropertyValue('--primary2') || rootStyle.getPropertyValue('--primary') || '#1a73e8';
+                ov.style.backgroundColor = bg.trim();
+                ov.style.color = text.trim();
+                const msg = document.createElement('p');
+                msg.textContent = 'O sistema parece estar aberto em outra aba.';
+                msg.style.fontSize = '18px';
+                msg.style.marginBottom = '16px';
+                // Botão para assumir esta instância e desativar a outra aba. Ao clicar, reescreve a
+                // chave ativa para o id desta aba e oculta o overlay.
+                const btnUseThis = document.createElement('button');
+                btnUseThis.textContent = 'Fechar outra aba';
+                btnUseThis.style.padding = '10px 16px';
+                btnUseThis.style.border = 'none';
+                btnUseThis.style.borderRadius = '4px';
+                btnUseThis.style.backgroundColor = primary.trim();
+                btnUseThis.style.color = '#fff';
+                btnUseThis.style.cursor = 'pointer';
+                btnUseThis.style.marginRight = '8px';
+                btnUseThis.onclick = function(){
+                  try{
+                    localStorage.setItem(TAB_KEY, myId);
+                  }catch(_e){}
+                  ov.style.display = 'none';
+                };
+                // Botão para recarregar a página (opção alternativa caso deseje revalidar o estado)
+                const btnReload = document.createElement('button');
+                btnReload.textContent = 'Recarregar';
+                btnReload.style.padding = '10px 16px';
+                btnReload.style.border = 'none';
+                btnReload.style.borderRadius = '4px';
+                btnReload.style.backgroundColor = primary.trim();
+                btnReload.style.color = '#fff';
+                btnReload.style.cursor = 'pointer';
+                btnReload.onclick = function(){ location.reload(); };
+                ov.appendChild(msg);
+                const btnContainer = document.createElement('div');
+                btnContainer.style.display = 'flex';
+                btnContainer.style.gap = '8px';
+                btnContainer.appendChild(btnUseThis);
+                btnContainer.appendChild(btnReload);
+                ov.appendChild(btnContainer);
+                document.body.appendChild(ov);
+              }
+              ov.style.display = 'flex';
+            }
+          }
+        });
+        // Ao receber foco, esta aba redefine a chave como ativa
+        window.addEventListener('focus', function(){
+          try{
+            const current = localStorage.getItem(TAB_KEY);
+            if(current !== myId){
+              localStorage.setItem(TAB_KEY, myId);
+            }
+          }catch(_e){}
+        });
+      }catch(err){ console.warn('erro controle de aba:', err); }
+    })();
     </script>
     <!-- ====== Módulo de atualização e melhorias ====== -->
     <script type="module">
@@ -10017,9 +10174,17 @@ setInterval(checkDevedorAlerts, 600000);
       function imprimirFluxo(modo){
         if(!db || !Array.isArray(db.caixa)) return;
         let start, end, label;
+        // Procuramos as datas de impressão específicas para diário e mensal. Caso não
+        // fornecidas, recorremos aos filtros de início existentes ou à data atual.
         const filtroInicio = document.getElementById('cx_filter_inicio');
         if(modo === 'diario'){
-          let dia = filtroInicio && filtroInicio.value ? filtroInicio.value : null;
+          // Primeiro tenta usar o input dedicado ao dia (cx_print_dia)
+          let dia = '';
+          const inpDia = document.getElementById('cx_print_dia');
+          if(inpDia && inpDia.value){ dia = inpDia.value; }
+          // Se não houver valor no input dedicado, usa o filtro de início da tabela
+          if(!dia && filtroInicio && filtroInicio.value){ dia = filtroInicio.value; }
+          // Se ainda não houver data, usa a data de hoje
           if(!dia){
             const now = new Date();
             const yyyy = now.getFullYear();
@@ -10029,15 +10194,30 @@ setInterval(checkDevedorAlerts, 600000);
           }
           start = new Date(dia + 'T00:00:00');
           end   = new Date(dia + 'T23:59:59');
+          // Monta label no formato DD/MM/YYYY
           label = dia.split('-').reverse().join('/');
         } else {
-          const base = filtroInicio && filtroInicio.value ? new Date(filtroInicio.value) : new Date();
-          const y = base.getFullYear();
-          const m = base.getMonth();
+          // Mensal: tenta usar o input dedicado ao mês (cx_print_mes)
+          let mesVal = '';
+          const inpMes = document.getElementById('cx_print_mes');
+          if(inpMes && inpMes.value){ mesVal = inpMes.value; }
+          // Se não houver valor no input de mês, usa o filtro de início (YYYY-MM-DD) para inferir o mês
+          if(!mesVal && filtroInicio && filtroInicio.value){ mesVal = filtroInicio.value.slice(0,7); }
+          // Se ainda não houver, usa o mês atual
+          if(!mesVal){
+            const now = new Date();
+            const yyyy = now.getFullYear();
+            const mm = String(now.getMonth()+1).padStart(2,'0');
+            mesVal = `${yyyy}-${mm}`;
+          }
+          // mesVal está no formato YYYY-MM; convertemos para Date
+          const parts = mesVal.split('-');
+          const y = parseInt(parts[0],10);
+          const m = parseInt(parts[1],10) - 1;
           start = new Date(y, m, 1, 0,0,0);
           end   = new Date(y, m+1, 0, 23,59,59);
-          const month = String(m+1).padStart(2,'0');
-          label = month + '/' + y;
+          const monthStr = String(m+1).padStart(2,'0');
+          label = monthStr + '/' + y;
         }
         const entries = db.caixa.filter(item=>{
           const dt = parseDateStr(item.data);
@@ -10112,8 +10292,11 @@ setInterval(checkDevedorAlerts, 600000);
         }
         w.document.write('<html><head><title>Relatório de Fluxo</title><style>body{font-family:Arial,sans-serif;color:#000;background:#fff;margin:20px;} h2,h3{margin:0 0 10px 0;} table{width:100%; border-collapse:collapse; margin-top:4px;} th, td{border:1px solid #999;padding:4px;font-size:12px;} thead{background:#f0f0f0;} </style></head><body>' + html + '</body></html>');
         w.document.close();
-        w.focus();
-        w.print();
+        // Aguarda um pequeno intervalo para garantir que o conteúdo seja renderizado
+        setTimeout(function(){
+          try{ w.print(); }catch(_e){}
+          try{ w.close(); }catch(_e){}
+        }, 200);
       }
       window.imprimirFluxo = imprimirFluxo;
       // ===== Função para ajuste rápido de quantidade na venda rápida =====
@@ -10550,6 +10733,125 @@ setInterval(checkDevedorAlerts, 600000);
         }
         render(true);
       }catch(e){ console.warn('toggleVendasOrder error', e); }
+    }
+    </script>
+
+    <!-- Funções adicionais para geração de código interno e impressão de etiqueta -->
+    <script>
+    // Carrega a biblioteca JsBarcode de forma assíncrona.  Tenta primeiro
+    // recuperar de localStorage para funcionar sem internet.  Se não existir,
+    // faz fetch via CDN e armazena para uso posterior.  Após carregar,
+    // window.JsBarcode estará disponível.
+    async function loadJsBarcode(){
+      if (window.JsBarcode) return;
+      let lib = null;
+      try {
+        lib = localStorage.getItem('_jsbarcode_code128');
+      } catch(e) {
+        lib = null;
+      }
+      if(!lib){
+        try {
+          const resp = await fetch('https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/barcodes/JsBarcode.code128.min.js');
+          if(resp && resp.ok){
+            lib = await resp.text();
+            try { localStorage.setItem('_jsbarcode_code128', lib); } catch(_e) {}
+          }
+        } catch(_err){
+          console.warn('Não foi possível baixar JsBarcode:', _err);
+        }
+      }
+      if(lib){
+        try {
+          eval(lib);
+        } catch(e){
+          console.warn('Erro ao avaliar JsBarcode:', e);
+        }
+      }
+    }
+
+    // Gera um número aleatório entre 5 e 9 dígitos e garante que seja único no estoque.
+    // Preenche o campo e_cod com o novo valor.  Se já existir código no campo,
+    // pergunta ao usuário antes de substituir.
+    function generateInternalBarcode(){
+      try{
+        const inp = document.getElementById('e_cod');
+        if(!inp) return;
+        const current = String(inp.value || '').trim();
+        if(current){
+          // Confirmação para substituição do código existente
+          if(!confirm('O código já está preenchido. Deseja substituí‑lo?')) return;
+        }
+        const existing = (window.db && window.db.estoque ? window.db.estoque : []).map(p => String(p.cod || '').trim());
+        const randomDigits = (len) => {
+          const arr = new Uint8Array(len);
+          if(window.crypto && window.crypto.getRandomValues){ window.crypto.getRandomValues(arr); }
+          else { for(let i=0;i<len;i++){ arr[i] = Math.floor(Math.random()*256); } }
+          return Array.from(arr).map(b => String(b % 10)).join('');
+        };
+        let newCode = '';
+        for(let attempt=0; attempt < 50; attempt++){
+          const len = 5 + Math.floor(Math.random()*5); // between 5 and 9
+          newCode = randomDigits(len);
+          if(newCode && !existing.includes(newCode)){
+            break;
+          }
+        }
+        if(newCode){
+          inp.value = newCode;
+        } else {
+          toast('Falha ao gerar código. Tente novamente.', 'bad');
+        }
+      }catch(err){ console.warn('generateInternalBarcode error', err); }
+    }
+
+    // Função auxiliar para escapar HTML simples
+    function _escapeHtml(str){
+      return String(str).replace(/[&<>"']/g, function(c){
+        return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c];
+      });
+    }
+
+    // Imprime etiqueta contendo nome, código e código de barras.  Abre nova janela
+    // com layout limpo, gera o barcode via JsBarcode (carregado via loadJsBarcode)
+    // e chama print().  Funciona online ou offline após a biblioteca estar em cache.
+    async function printEtiqueta(){
+      try{
+        // Evita múltiplas impressões ao mesmo tempo, o que em alguns dispositivos móveis pode
+        // resultar em janelas duplicadas. Usa uma flag global simples para bloquear
+        // reentrâncias até que a operação atual finalize.
+        if(window.__printingEtiqueta){ return; }
+        window.__printingEtiqueta = true;
+        const cod = String(document.getElementById('e_cod')?.value || '').trim();
+        const nome = String(document.getElementById('e_nome')?.value || '').trim();
+        if(!cod){ toast('Gere ou preencha um código antes de imprimir.', 'warn'); return; }
+        await loadJsBarcode();
+        const w = window.open('', '_blank');
+        if(!w){
+          toast('Não foi possível abrir janela de impressão. Verifique bloqueador de pop‑ups.', 'bad');
+          window.__printingEtiqueta = false;
+          return;
+        }
+        const style = `body{font-family:Arial, sans-serif;color:#000;background:#fff;margin:0;padding:0;} .label{width:60mm;height:30mm;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:4mm;} .name{font-size:14pt;margin-bottom:4mm;text-align:center;} .code-num{font-size:16pt;font-weight:bold;margin-top:4mm;text-align:center;}`;
+        w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Etiqueta</title><style>'+style+'</style></head><body><div class="label"><div class="name">'+_escapeHtml(nome)+'</div><svg id="barcode"></svg><div class="code-num">'+_escapeHtml(cod)+'</div></div></body></html>');
+        w.document.close();
+        w.onload = function(){
+          try {
+            if(window.JsBarcode && w.document.getElementById('barcode')){
+              const svg = w.document.getElementById('barcode');
+              // Usa Code128; displayValue false porque o número já é mostrado separadamente
+              window.JsBarcode(svg, cod, {format:'CODE128', displayValue:false, lineColor:'#000', background:'#ffffff', width:2, height:40, margin:0});
+            }
+          }catch(e){ console.warn('Erro ao renderizar barcode:', e); }
+          // Pequeno atraso para garantir renderização antes de imprimir
+          setTimeout(function(){
+            try{ w.print(); }catch(_e){}
+            try{ w.close(); }catch(_e){}
+            // Libera a flag de impressão para permitir futuras impressões
+            window.__printingEtiqueta = false;
+          }, 200);
+        };
+      }catch(err){ console.warn('printEtiqueta error', err); window.__printingEtiqueta = false; }
     }
     </script>
 </body>
