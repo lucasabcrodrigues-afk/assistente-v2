@@ -822,6 +822,35 @@ body.mobile-mode #bottomNav button{
     height:32px;
     font-size:18px;
   }
+
+  /*
+    === Tema Elegante (classes) ===
+    Aplicamos animações extras e efeitos de hover para o modo elegante.
+    Estes estilos são ativados quando a classe `theme-elegante` está presente
+    no elemento `<html>` (definida em `applyTheme`).
+  */
+  .theme-elegante .card{
+    transition: transform .25s ease, box-shadow .25s ease;
+    animation: fadeInUp .4s ease;
+  }
+  .theme-elegante .card:hover{
+    transform: translateY(-3px);
+    box-shadow: var(--shadow), var(--shadow2);
+  }
+  .theme-elegante button{
+    transition: transform .15s ease;
+  }
+  .theme-elegante button:hover{
+    transform: scale(1.05);
+  }
+  /* Prefixa todos os títulos h3 com um ícone de café no tema elegante */
+  .theme-elegante h3::before{
+    content:'☕';
+    margin-right:6px;
+  }
+  @keyframes fadeInUp{
+    from{opacity:0; transform: translateY(10px);} to{opacity:1; transform: translateY(0);}
+  }
 }
 /* Sobreposição e modal para ajuda contextual */
 #helpOverlay{
@@ -1569,7 +1598,11 @@ body.mobile-mode #bottomNav button{
     </div>
 
     <!-- Histórico de Caixa e Impressão -->
-    <div class="card">
+    <!--
+      Cartão de histórico de caixa foi ajustado para receber um id (cx_hist_card).
+      Isso nos permite ocultar o histórico quando o usuário não for administrador.
+    -->
+    <div class="card" id="cx_hist_card">
       <h3>Histórico de Caixa</h3>
       <div class="grid" style="margin-bottom:6px;">
         <input type="date" id="cx_filter_inicio" title="Data inicial" onchange="renderCaixaTable()" />
@@ -1758,9 +1791,10 @@ body.mobile-mode #bottomNav button{
       <div class="grid">
         <button onclick="setTheme('default')">Modo Padrão</button>
         <button onclick="setTheme('white')">Modo Branco</button>
+        <button onclick="setTheme('elegante')">Modo Elegante</button>
       </div>
       <div class="small" style="margin-top:8px;">
-        O modo branco aplica um tema branco com efeito glass moderno e visual leve.
+        O modo branco aplica um tema branco com efeito glass moderno e visual leve. O modo elegante utiliza tons pastéis de café e transparências para criar um visual sofisticado.
       </div>
     </div>
     <div id="ajusteArquivo" class="card" style="display:none;">
@@ -2104,6 +2138,7 @@ body.mobile-mode #bottomNav button{
       <div class="grid">
         <button onclick="setTheme('default')">Modo Padrão</button>
         <button onclick="setTheme('white')">Modo Branco</button>
+        <button onclick="setTheme('elegante')">Modo Elegante</button>
       </div>
       <!-- Seção de layout (interface padrão ou simples) -->
       <h4 style="margin-top:10px;">🖥 Layout</h4>
@@ -3422,11 +3457,29 @@ applyLargeFontFromStorage();
 
 /* ========== Restrições por perfil ========== */
 function limparRestricoesVisuais(){
+  // Restaura a visibilidade de todos os botões de navegação e seções ocultas.
   document.querySelectorAll("nav button").forEach(btn => btn.style.display = "");
+  // Restaura seções de usuários e perfil
   const secUsuarios = $("usuarios");
   const secPerfil = $("perfil");
   if(secUsuarios) secUsuarios.style.display = "";
   if(secPerfil) secPerfil.style.display = "";
+  // Restaura seções de Ajustes ocultas anteriormente
+  ['btnCfg_empresa','btnCfg_aparencia','btnCfg_dados','btnCfg_ferramentas'].forEach(function(id){
+    const el = document.getElementById(id);
+    if(el) el.style.display = '';
+  });
+  ['perfil','ajusteTema','ajusteArquivo','ajusteExtras','ajustePreferencias','ajusteComercio','ajusteInterface'].forEach(function(id){
+    const el = $(id);
+    if(el) el.style.display = '';
+  });
+  // Restaura a aba Caixa e o módulo de Fluxo de Caixa
+  const secCaixa = document.getElementById('caixa');
+  if(secCaixa) secCaixa.style.display = '';
+  const fluxoCard = document.getElementById('fluxo_card');
+  if(fluxoCard) fluxoCard.style.display = '';
+  const histCard = document.getElementById('cx_hist_card');
+  if(histCard) histCard.style.display = '';
 }
 function aplicarRestricoesPorPerfil(){
   if(!currentUser) return;
@@ -3462,6 +3515,33 @@ function aplicarRestricoesPorPerfil(){
       ['perfil','ajusteTema','ajusteArquivo','ajusteExtras','ajustePreferencias','ajusteComercio','ajusteInterface'].forEach(function(id){
         const el = $(id);
         if(el) el.style.display = 'none';
+      });
+    }
+  }catch(_e){}
+
+  // Oculta elementos específicos da aba Caixa para usuários não administradores.
+  try{
+    const secCaixa = document.getElementById('caixa');
+    const fluxoCard = document.getElementById('fluxo_card');
+    const histCard  = document.getElementById('cx_hist_card');
+    if(currentUser && currentUser.role !== 'admin'){
+      // Para perfis não administradores:
+      // - mantém o botão de navegação e a seção Caixa visíveis (abrir, lançar e fechar caixa).
+      // - oculta o cartão de fluxo de caixa (relatório em PDF) e o histórico de caixa.
+      if(fluxoCard) fluxoCard.style.display = 'none';
+      if(histCard) histCard.style.display = 'none';
+      // Se a seção caixa estiver ativa e somente o fluxo/histórico foram escondidos, permanece em caixa.
+    } else {
+      // Usuário administrador: garante que todos os elementos do caixa estão visíveis
+      if(secCaixa) secCaixa.style.display = '';
+      if(fluxoCard) fluxoCard.style.display = '';
+      if(histCard) histCard.style.display = '';
+      // Também garante visibilidade do botão de navegação
+      document.querySelectorAll('nav button').forEach(btn => {
+        const txt = (btn.textContent || '').toLowerCase();
+        if(txt.includes('caixa')){
+          btn.style.display = '';
+        }
       });
     }
   }catch(_e){}
@@ -3547,6 +3627,8 @@ function doLogin(){
   }
   $("loginSection").style.display = "none";
   $("systemSection").style.display = "block";
+  // Restaura visuais antes de aplicar restrições específicas do usuário.
+  try{ limparRestricoesVisuais(); }catch(_e){}
   aplicarRestricoesPorPerfil();
   show("dashboard");
   render(true);
@@ -3894,9 +3976,11 @@ function setEstoqueModeUI(){
   }
 }
 function startEditProduto(cod){
-  // Verificar permissão para excluir produto
-  if(!hasPerm('deleteProduct')){
-    toast('Sem permissão para apagar produtos.', 'bad');
+  // Verificar permissão para editar produto (custo ou preço). Somente usuários com permissão
+  // editCost ou editPrice podem ativar o modo de edição de estoque. O botão Editar é oculto
+  // para perfis sem estas permissões no render().
+  if(!hasPerm('editCost') && !hasPerm('editPrice')){
+    toast('Você não tem permissão para editar produtos.', 'bad');
     return;
   }
   cod = s(cod);
@@ -4068,6 +4152,11 @@ function clearEstoqueSearch(){
   render(true);
 }
 function deleteProduto(cod){
+  // Verifica permissão de exclusão de produto
+  if(!hasPerm('deleteProduct')){
+    toast('Você não tem permissão para apagar produtos.', 'bad');
+    return;
+  }
   cod = s(cod);
   const p = (db.estoque || []).find(x => s(x.cod) === cod);
   if(!p){ toast("Produto não encontrado.", "bad"); return; }
@@ -4925,6 +5014,22 @@ function addToCart(){
   }
 
   if($("c_qtd")) $("c_qtd").value = "1";
+  // Limpa campo de busca e seleção de produto após adicionar ao carrinho.
+  try {
+    const busca = $("c_busca");
+    if (busca) busca.value = "";
+    const prodSel = $("c_prod");
+    if (prodSel) {
+      // Define valor vazio para resetar a seleção
+      prodSel.value = "";
+    }
+    // Reaplica filtro ou limpa lista de produtos se necessário
+    if (typeof filtrarProdutosVenda === 'function') {
+      filtrarProdutosVenda();
+    }
+    // Foca novamente no campo de busca para agilizar o próximo item
+    if (busca && typeof busca.focus === 'function') busca.focus();
+  } catch(_e){}
   renderCarrinho(true);
   pulseCart();
   toast("Adicionado ao carrinho.", "ok");
@@ -6344,16 +6449,22 @@ function render(withFlash=false){
         tdLucro.textContent = `R$ ${centsToBR(lucroUnit_c)}`;
       }
       const tdAcoes = document.createElement('td');
-      const btnEdit = document.createElement('button');
-      btnEdit.className = 'ghost';
-      btnEdit.textContent = 'Editar';
-      btnEdit.onclick = () => startEditProduto(p.cod);
-      const btnDel = document.createElement('button');
-      btnDel.className = 'danger';
-      btnDel.textContent = 'Apagar';
-      btnDel.onclick = () => deleteProduto(p.cod);
-      tdAcoes.appendChild(btnEdit);
-      tdAcoes.appendChild(btnDel);
+      // Exibe botões de edição/apagamento somente se o usuário tiver permissão
+      // para editar custo/preço ou excluir produto. Caso contrário, exibe um traço.
+      if(hasPerm('editCost') || hasPerm('editPrice') || hasPerm('deleteProduct')){
+        const btnEdit = document.createElement('button');
+        btnEdit.className = 'ghost';
+        btnEdit.textContent = 'Editar';
+        btnEdit.onclick = () => startEditProduto(p.cod);
+        const btnDel = document.createElement('button');
+        btnDel.className = 'danger';
+        btnDel.textContent = 'Apagar';
+        btnDel.onclick = () => deleteProduto(p.cod);
+        tdAcoes.appendChild(btnEdit);
+        tdAcoes.appendChild(btnDel);
+      } else {
+        tdAcoes.textContent = '—';
+      }
       tr.appendChild(tdCod);
       tr.appendChild(tdNome);
       tr.appendChild(tdQtd);
@@ -6647,6 +6758,32 @@ const themeVars = {
     "--shadow":"0 4px 12px rgba(0,0,0,.06)",
     "--shadow2":"0 2px 6px rgba(0,0,0,.04)"
   }
+  ,elegante: {
+    /*
+      Paleta para o modo Elegante. Inspirado em tons de café e pastéis com
+      transparências para um efeito glass. A intenção é transmitir um
+      visual sofisticado com cores quentes e aconchegantes.
+      
+      As cores foram ajustadas para que o fundo não fique mais branco, mas
+      sim em um tom de café bem claro. As cores dos painéis permanecem
+      translúcidas para manter o efeito de vidro.
+    */
+    // A paleta foi ajustada novamente para remover qualquer resquício de branco.
+    // Tons de café claro são usados em todas as superfícies.
+    "--bg":"#f0e6d2",
+    "--panel":"rgba(244,226,204,0.88)",
+    "--panel2":"rgba(234,216,193,0.65)",
+    "--primary":"#a67c52",
+    "--primary2":"#c09b72",
+    "--text":"#3e2723",
+    "--muted":"#8d6e63",
+    "--border":"rgba(200,173,148,0.4)",
+    "--ok":"#5d9c88",
+    "--bad":"#c25757",
+    "--warn":"#c69c6d",
+    "--shadow":"0 12px 35px rgba(0,0,0,.1)",
+    "--shadow2":"0 8px 24px rgba(0,0,0,.08)"
+  }
 };
 
 function applyTheme(theme){
@@ -6667,6 +6804,23 @@ function applyTheme(theme){
   }else{
     // remove estilo inline para restabelecer o gradiente padrão definido no CSS
     document.body.style.background = "";
+  }
+  // Ajusta fundo especial para o modo elegante. Este tema utiliza
+  // tons de creme e bege com uma leve transparência para valorizar
+  // o efeito glass dos painéis. O corpo recebe um gradiente suave.
+  if(theme === "elegante"){
+    // Fundo em tom de café claro com camadas translúcidas para acentuar o efeito glass.
+    document.body.style.background =
+      "radial-gradient(1200px 800px at 30% 10%, rgba(243,223,206,0.5), transparent 60%),"+
+      "radial-gradient(1200px 800px at 80% 30%, rgba(236,209,189,0.4), transparent 60%),"+
+      "linear-gradient(180deg, rgba(240,218,199,0.95), rgba(233,204,183,0.95))";
+  }
+
+  // Adiciona classes no elemento raiz para customizações adicionais
+  // Remove a classe anteriormente aplicada (caso o tema mude)
+  document.documentElement.classList.remove('theme-elegante');
+  if(theme === 'elegante'){
+    document.documentElement.classList.add('theme-elegante');
   }
   // Persistir tema usando método seguro para evitar exceções no localStorage
   safeLocalSet("erp_theme", theme);
@@ -9557,8 +9711,8 @@ setInterval(checkDevedorAlerts, 600000);
           head: [['Item','Valor']],
           body: resumoRows,
           startY: y,
-          styles:{ fontSize: 8 },
-          headStyles:{ fillColor:[240,240,240] }
+          styles:{ fontSize: 8, textColor:[0,0,0] },
+          headStyles:{ fillColor:[240,240,240], textColor:[0,0,0] }
         });
         y = doc.lastAutoTable ? doc.lastAutoTable.finalY + 8 : y + 20;
         // Anexo: Movimentos do Caixa
@@ -9587,8 +9741,8 @@ setInterval(checkDevedorAlerts, 600000);
           head: [['Data','Tipo','Categoria','Valor','Descrição','Responsável']],
           body: caixaRows,
           startY: y,
-          styles:{ fontSize: 7 },
-          headStyles:{ fillColor:[240,240,240] }
+          styles:{ fontSize: 7, textColor:[0,0,0] },
+          headStyles:{ fillColor:[240,240,240], textColor:[0,0,0] }
         });
         y = doc.lastAutoTable ? doc.lastAutoTable.finalY + 8 : y + 20;
         // Anexo: Vendas
@@ -9599,8 +9753,8 @@ setInterval(checkDevedorAlerts, 600000);
           head: [['Data','Total','Pagamento']],
           body: vendasRows,
           startY: y,
-          styles:{ fontSize: 7 },
-          headStyles:{ fillColor:[240,240,240] }
+          styles:{ fontSize: 7, textColor:[0,0,0] },
+          headStyles:{ fillColor:[240,240,240], textColor:[0,0,0] }
         });
         y = doc.lastAutoTable ? doc.lastAutoTable.finalY + 8 : y + 20;
         // Observações
@@ -10325,15 +10479,16 @@ setInterval(checkDevedorAlerts, 600000);
             ov.style.left = '0';
             ov.style.right = '0';
             ov.style.bottom = '0';
-            // Definir cores com base nas variáveis de tema do ERP para suportar modos claro/escuro.
-            // Obtemos as propriedades CSS definidas no :root (ex.: --panel2, --bg, --text, --primary, etc.).
-            const rootStyle = getComputedStyle(document.documentElement);
-            const bgColor   = (rootStyle.getPropertyValue('--panel2') || rootStyle.getPropertyValue('--bg') || '#ffffff').trim();
-            const textColor = (rootStyle.getPropertyValue('--text') || '#5f6368').trim();
-            const primaryColor = (rootStyle.getPropertyValue('--primary2') || rootStyle.getPropertyValue('--primary') || '#1a73e8').trim();
-            ov.style.backgroundColor = bgColor || '#ffffff';
-            // herda a cor de texto da aplicação
-            ov.style.color = textColor || '#5f6368';
+            // Definir cores fixas para a página offline. Independentemente do tema ativo, o
+            // overlay usa branco puro como fundo e cores padrão do navegador. Isso
+            // garante que o usuário não veja o fundo personalizado do ERP quando o
+            // site não estiver hospedado ou a conexão falhar.
+            const bgColor   = '#ffffff';
+            const textColor = '#5f6368';
+            const primaryColor = '#1a73e8';
+            ov.style.backgroundColor = bgColor;
+            // Define a cor de texto padrão para a página offline
+            ov.style.color = textColor;
             ov.style.zIndex = '99998';
             ov.style.display = 'none';
             ov.style.flexDirection = 'column';
@@ -10341,6 +10496,12 @@ setInterval(checkDevedorAlerts, 600000);
             ov.style.alignItems = 'center';
             ov.style.textAlign = 'center';
             ov.style.fontFamily = 'Arial, sans-serif';
+            // Garantir que o overlay não herde efeitos de transparência ou desfoque do tema.
+            // Remove qualquer filtro ou backdropFilter que possa tornar o painel translúcido no modo Elegante.
+            ov.style.backdropFilter = 'none';
+            ov.style.filter = 'none';
+            ov.style.opacity = '1';
+            ov.style.backgroundImage = 'none';
 
             // Monta estrutura inspirada em uma página de erro do navegador, com texto e lista à esquerda e botões à direita.
             const container = document.createElement('div');
@@ -11553,6 +11714,9 @@ setInterval(checkDevedorAlerts, 600000);
             if (window.jspdf && window.jspdf.jsPDF) {
               const { jsPDF } = window.jspdf;
               const doc = new jsPDF();
+              // Garante que a cor padrão do texto seja preta. Alguns temas aplicam cor branca
+              // e isso pode afetar o PDF se não for definido explicitamente.
+              doc.setTextColor(0,0,0);
               // Cabeçalho
               doc.setFontSize(14);
               doc.text(`Fluxo de Caixa ${modo === 'diario' ? 'Diário' : 'Mensal'}`, 10, 16);
@@ -11589,8 +11753,8 @@ setInterval(checkDevedorAlerts, 600000);
                   head,
                   body,
                   startY: yOff,
-                  styles: { fontSize: 7 },
-                  headStyles: { fillColor: [240,240,240] },
+                  styles: { fontSize: 7, textColor: [0,0,0] },
+                  headStyles: { fillColor: [240,240,240], textColor: [0,0,0] },
                   margin: { left: 10, right: 10 }
                 });
                 yOff = doc.lastAutoTable ? doc.lastAutoTable.finalY + 8 : yOff + 8;
@@ -11607,8 +11771,8 @@ setInterval(checkDevedorAlerts, 600000);
                   head: [['Responsável','Valor']],
                   body: respBody,
                   startY: yOff,
-                  styles: { fontSize: 8 },
-                  headStyles: { fillColor: [240,240,240] },
+                  styles: { fontSize: 8, textColor: [0,0,0] },
+                  headStyles: { fillColor: [240,240,240], textColor: [0,0,0] },
                   margin: { left: 10, right: 10 }
                 });
                 yOff = doc.lastAutoTable ? doc.lastAutoTable.finalY + 8 : yOff + 8;
@@ -11625,8 +11789,8 @@ setInterval(checkDevedorAlerts, 600000);
                   head: [['Categoria','Valor']],
                   body: catBody,
                   startY: yOff,
-                  styles: { fontSize: 8 },
-                  headStyles: { fillColor: [240,240,240] },
+                  styles: { fontSize: 8, textColor: [0,0,0] },
+                  headStyles: { fillColor: [240,240,240], textColor: [0,0,0] },
                   margin: { left: 10, right: 10 }
                 });
                 yOff = doc.lastAutoTable ? doc.lastAutoTable.finalY + 10 : yOff + 10;

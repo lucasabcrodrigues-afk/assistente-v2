@@ -223,6 +223,11 @@
     }
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
+    // Define a cor do texto para preto para evitar fontes brancas no PDF
+    // Alguns temas do sistema definem cores claras para o texto (por exemplo var(--text) em modo escuro).
+    // Como o jsPDF mantém a cor do texto entre chamadas, definimos explicitamente
+    // a cor para preto no início da geração do PDF.
+    doc.setTextColor(0, 0, 0);
     // Página 1: Cabeçalho e resumo
     doc.setFontSize(16);
     doc.text(report.title, 10, 14);
@@ -244,8 +249,8 @@
       head: [['Item','Valor']],
       body: totRows,
       startY: 36,
-      styles: { fontSize: 9 },
-      headStyles: { fillColor: [240,240,240] }
+      styles: { fontSize: 9, textColor: [0, 0, 0] },
+      headStyles: { fillColor: [240,240,240], textColor: [0, 0, 0] }
     });
     // Movimentos do caixa detalhados
     let y = doc.lastAutoTable ? doc.lastAutoTable.finalY + 10 : 80;
@@ -257,8 +262,8 @@
       head: [['Data/Hora','Tipo','Descrição','Valor','Responsável']],
       body: movRows.length > 0 ? movRows : [['Sem movimentações no período','','','','']],
       startY: y,
-      styles: { fontSize: 7 },
-      headStyles: { fillColor: [240,240,240] }
+      styles: { fontSize: 7, textColor: [0, 0, 0] },
+      headStyles: { fillColor: [240,240,240], textColor: [0, 0, 0] }
     });
     y = doc.lastAutoTable ? doc.lastAutoTable.finalY + 10 : y + 20;
     // Verifica se ultrapassou a página
@@ -273,8 +278,8 @@
       head: [vendaHead],
       body: vendasRows.length > 0 ? vendasRows : [['Sem vendas no período','','','','','']],
       startY: y,
-      styles: { fontSize: 7 },
-      headStyles: { fillColor: [240,240,240] },
+      styles: { fontSize: 7, textColor: [0, 0, 0] },
+      headStyles: { fillColor: [240,240,240], textColor: [0, 0, 0] },
       columnStyles: {
         0: { cellWidth: 32 }, // Data
         1: { cellWidth: 24 }, // ID
