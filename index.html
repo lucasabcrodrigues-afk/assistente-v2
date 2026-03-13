@@ -12550,7 +12550,12 @@ setInterval(checkDevedorAlerts, 600000);
         window.__printingEtiqueta = true;
         const cod = String(document.getElementById('e_cod')?.value || '').trim();
         const nome = String(document.getElementById('e_nome')?.value || '').trim();
-        if(!cod){ toast('Gere ou preencha um código antes de imprimir.', 'warn'); return; }
+        // Se não houver código, notifica e libera a flag de impressão para permitir novas tentativas.
+        if(!cod){
+          toast('Gere ou preencha um código antes de imprimir.', 'warn');
+          window.__printingEtiqueta = false;
+          return;
+        }
         await loadJsBarcode();
         const w = window.open('', '_blank');
         if(!w){
